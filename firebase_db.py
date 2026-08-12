@@ -5,6 +5,7 @@ All data is stored under /gym_data/ in Firebase Realtime Database.
 """
 
 import os
+import json
 import firebase_admin
 from firebase_admin import credentials, db as firebase_rtdb, storage
 from datetime import date, datetime
@@ -20,10 +21,18 @@ def _init_firebase_db():
     config_dir = os.path.dirname(os.path.abspath(__file__))
     key_path = os.path.join(config_dir, 'firebase_key.json')
 
-    if not os.path.exists(key_path):
-        raise Exception("firebase_key.json not found")
-
-    cred = credentials.Certificate(key_path)
+    if os.path.exists(key_path):
+        cred = credentials.Certificate(key_path)
+    else:
+        # Check for Environment Variable (used in Vercel)
+        firebase_env = os.environ.get('FIREBASE_CREDENTIALS')
+        if not firebase_env:
+            raise Exception("firebase_key.json not found and FIREBASE_CREDENTIALS environment variable is not set")
+        try:
+            cred_dict = json.loads(firebase_env)
+            cred = credentials.Certificate(cred_dict)
+        except Exception as e:
+            raise Exception(f"Failed to parse FIREBASE_CREDENTIALS environment variable: {e}")
 
     try:
         _db_app = firebase_admin.get_app('gym_db')

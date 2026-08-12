@@ -77,18 +77,21 @@ function loadMembers() {
                         <td>${m.name}<br><small style="color:gray;">${m.phone || ''}</small></td>
                         <td>${m.trainer_name}</td>
                         <td>${m.plan}</td>
-                        <td>${m.start_date}</td>
-                        <td>${m.end_date}</td>
-                        <td>${m.frozen_date}</td>
-                        <td>${m.last_return_date}</td>
+                        <td style="white-space: nowrap;">${m.start_date}</td>
+                        <td style="white-space: nowrap;">${m.end_date}</td>
+                        <td style="white-space: nowrap;">${m.frozen_date}</td>
+                        <td style="white-space: nowrap;">${m.last_return_date}</td>
                         <td style="font-weight:bold;">${m.remaining_days}</td>
                         <td>${m.notes}</td>
                         <td class="${statusClass}">${statusText}</td>
-                        <td style="display:flex; gap:5px; justify-content:center;">
+                        <td style="display:flex; gap:5px; justify-content:center; flex-wrap:wrap;">
                             <button style="background-color: #3b82f6; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-weight:bold;" onclick="viewMemberCard(${m.id})">البطاقة 💳</button>
                             <button style="background-color: #ef4444; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-weight:bold;" onclick="deleteMember(${m.id})">حذف 🗑️</button>
                             <button style="background-color: #6366f1; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-weight:bold;" onclick="enrollFingerprint(${m.id})">بصمة 👆</button>
-                            <button style="background-color: #f59e0b; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-weight:bold;" onclick="freezeMember(${m.id})">تجميد ⏸️</button>
+                            ${m.status === 'expired' 
+                                ? `<button style="background-color: #10b981; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-weight:bold;" onclick="renewMember(${m.id})">تجديد 🔄</button>` 
+                                : `<button style="background-color: #f59e0b; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-weight:bold;" onclick="freezeMember(${m.id})">تجميد ⏸️</button>`
+                            }
                         </td>
                     </tr>
                 `;

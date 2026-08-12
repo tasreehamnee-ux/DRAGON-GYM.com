@@ -511,16 +511,18 @@ def staff_api():
     try:
         if request.method == 'POST':
             data = request.json
-            new_staff = Staff(
+            from business_logic import add_staff
+            success, msg = add_staff(
                 name=data.get('name'),
+                phone=data.get('phone'),
                 role=data.get('role'),
-                salary=float(data.get('salary', 0)),
-                salary_type=data.get('salary_type'),
-                phone=data.get('phone')
+                salary=data.get('salary', 0),
+                salary_type=data.get('salary_type')
             )
-            session.add(new_staff)
-            session.commit()
-            return jsonify({"message": "تم الإضافة"})
+            if success:
+                return jsonify({"message": msg})
+            else:
+                return jsonify({"error": msg}), 400
             
         elif request.method == 'GET':
             from database import USE_FIREBASE

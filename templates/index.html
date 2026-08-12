@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نظام إدارة الصالة الرياضية</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    
+    <!-- Firebase Web SDK -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+        import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyC-F2fCxy-NkgC3OWBwvD8Q5ngSv_9bcIo",
+            authDomain: "dragon-gym-9f3d7.firebaseapp.com",
+            projectId: "dragon-gym-9f3d7",
+            storageBucket: "dragon-gym-9f3d7.firebasestorage.app",
+            messagingSenderId: "682464412293",
+            appId: "1:682464412293:web:9d04463b8a1cfcd8e5dfec",
+            measurementId: "G-TVDTD8EFYS"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+        const clientRef = ref(db, 'clients/client_1');
+        
+        onValue(clientRef, (snapshot) => {
+            const data = snapshot.val();
+            if (data) {
+                const isLocked = data.is_locked || false;
+                const isClosed = data.is_closed || false;
+                
+                if (isLocked || isClosed) {
+                    document.getElementById('app-container').style.display = 'none';
+                    document.getElementById('lock-screen').style.display = 'flex';
+                } else {
+                    document.getElementById('app-container').style.display = 'flex';
+                    document.getElementById('lock-screen').style.display = 'none';
+                }
+            }
+        });
+    </script>
+</head>
+<body>
+    <!-- شاشة القفل -->
+    <div id="lock-screen" style="display: none; height: 100vh; width: 100%; background-color: #111; color: white; justify-content: center; align-items: center; flex-direction: column;">
+        <h1 style="color: #ef4444; font-size: 48px;">التطبيق مقفل 🔒</h1>
+        <p style="font-size: 20px;">يرجى التواصل مع الإدارة أو التأكد من صلاحية الترخيص.</p>
+    </div>
+
+    <!-- التطبيق الرئيسي -->
+    <div id="app-container" style="display: flex; width: 100%; height: 100%;">
+        
+        <!-- الشريط الجانبي -->
+        <div class="sidebar">
+            <h2 id="sidebar_gym_name">DRAGON GYM</h2>
+            <button class="menu-btn active" onclick="showSection('dashboard', this)">الإحصائيات الرئيسية</button>
+            <button class="menu-btn" onclick="showSection('members', this)">إدارة المشتركين</button>
+            <button class="menu-btn" onclick="showSection('add-member', this)">إضافة مشترك جديد</button>
+            <button class="menu-btn" onclick="showSection('face-entry', this)">بوابة الدخول (الوجه)</button>
+            <button class="menu-btn" onclick="showSection('member-card-search', this)">بطاقة المشترك</button>
+            <button class="menu-btn" onclick="showSection('payments', this)">سجل الاشتراكات عامة</button>
+            <button class="menu-btn" onclick="showSection('reports', this)">الإحصائيات الشاملة</button>
+            <button class="menu-btn" onclick="showSection('staff', this)">الكادر</button>
+            <button class="menu-btn" onclick="showSection('plans-settings', this)">إعدادات النظام</button>
+        </div>
+
+        <!-- المنطقة الرئيسية -->
+        <div class="main-area">
+            
+            <!-- قسم الإحصائيات -->
+            <div id="dashboard" class="section active">
+                <h2 class="section-title">لوحة التحكم والإحصائيات</h2>
+                <div id="dashboard-stats">جاري التحميل...</div>
+            </div>
+
+            <!-- قسم إدارة المشتركين -->
+            <div id="members" class="section">
+                <h2 class="section-title">قائمة المشتركين الحاليين</h2>
+                
+                <div style="display: flex; justify-content: space-between; margin-bottom: 15px;">
+                    <div style="display: flex; gap: 10px;">
+                        <button class="btn-primary" style="background-color: #3b82f6;" onclick="loadMembers()">تحديث</button>
+                        <a href="/api/export_members" class="btn-primary" style="background-color: #3b82f6; text-decoration: none; display: flex; align-items: center;" download>تصدير إلى Excel</a>
+                        <button class="btn-primary" style="background-color: #10b981;">استيراد ذكي من Excel</button>
+                    </div>
+                    <div>
+                        <input type="text" id="search_member" placeholder="بحث عن مشترك بالاسم، رقم الهاتف..." style="padding: 8px; width: 300px; border: 1px solid #cbd5e1; border-radius: 4px;" onkeyup="filterMembersTable()">
+                    </div>
+                </div>
+
+                <div style="overflow-x: auto;">
+                    <table style="min-width: 1200px;">
+                        <thead>
+                            <tr>
+                                <th>الرقم</th>
+                                <th>الاسم</th>
+                                <th>المدرب</th>
+                                <th>نوع الاشتراك</th>
+                                <th>تاريخ البدء</th>
+                                <th>تاريخ الاستحقاق</th>
+                                <th>تاريخ التجميد</th>
+                                <th>الانتهاء بعد التجميد</th>
+                                <th>الأيام المتبقية</th>
+                                <th>ملاحظات</th>
+                                <th>الحالة</th>
+                                <th>الإجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody id="members-table-body">
+                            <tr><td colspan="12">جاري التحميل...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- قسم إضافة مشترك -->
+            <div id="add-member" class="section">
+                <h2 class="section-title">إضافة مشترك جديد</h2>
+                <div style="max-width: 700px; background: #ffffff; padding: 30px; border: 1px solid #cbd5e1; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+                    <form id="add-member-form" style="display: grid; grid-template-columns: 1fr 3fr; gap: 15px; align-items: center;">
+                        
+                        <label style="font-weight: bold;">الاسم الكامل:</label>
+                        <input type="text" id="mem_name" required style="padding: 8px; border: 1px solid #cbd5e1; border-radius: 4px;">
+
+                        <label style="font-weight: bold;">اسم المدرب:</label>
+                        <input type="text" id="mem_trainer" style="padding: 8px; border: 1px solid #cbd5e1; border-radius: 4px;">
+
+                        <label style="font-weight: bold;">رقم الهاتف:</label>
+                        <input type="text" id="mem_phone" style="padding: 8px; border: 1px solid #cbd5e1; border-radius: 4px;">
+
+                        <label style="font-weight: bold;">رقم الكارت (RFID):</label>
+                        <input type="text" id="mem_card" placeholder="مرر الكارت هنا أو اتركه فارغاً" style="padding: 8px; border: 1px solid #cbd5e1; border-radius: 4px;">
+
+                        <label style="font-weight: bold;">العنوان:</label>
+                        <input type="text" id="mem_address" style="padding: 8px; border: 1px solid #cbd5e1; border-radius: 4px;">
+
+                        <label style="font-weight: bold;">أقرب نقطة دالة:</label>
+                        <input type="text" id="mem_landmark" style="padding: 8px; border: 1px solid #cbd5e1; border-radius: 4px;">
+
+                        <label style="font-weight: bold;">نوع الاشتراك:</label>
+                        <select id="mem_plan" required style="padding: 8px; border: 1px solid #cbd5e1; border-radius: 4px;"></select>
+
+                        <label style="font-weight: bold;">طريقة الدفع:</label>
+                        <select id="mem_payment" style="padding: 8px; border: 1px solid #cbd5e1; border-radius: 4px;">
+                            <option value="نقدي">نقدي</option>
+                            <option value="حوالة">حوالة</option>
+                            <option value="بطاقة">بطاقة</option>
+                        </select>
+
+                        <label style="font-weight: bold;">رقم الوصل:</label>
+                        <input type="text" id="mem_receipt" placeholder="رقم الوصل (اختياري - يولد تلقائياً إن تٌرك فارغاً)" style="padding: 8px; border: 1px solid #cbd5e1; border-radius: 4px;">
+
+                        <label style="font-weight: bold;">ملاحظات:</label>
+                        <textarea id="mem_notes" placeholder="ملاحظات أو مهام خاصة بالمشترك..." style="padding: 8px; border: 1px solid #cbd5e1; border-radius: 4px; resize: vertical; min-height: 60px;"></textarea>
+
+                        <div></div>
+                        <label style="display: flex; align-items: center; color: #ef4444; font-weight: bold; cursor: pointer;">
+                            <input type="checkbox" id="mem_pending" style="margin-left: 10px; width: 18px; height: 18px;">
+                            تأجيل بدء الاشتراك (دفع ولم يباشر بعد)
+                        </label>
+
+                        <label style="font-weight: bold;">تاريخ البدء:</label>
+                        <input type="date" id="mem_start" required style="padding: 8px; border: 1px solid #cbd5e1; border-radius: 4px;">
+
+                        <div style="grid-column: 1 / span 2; display: flex; gap: 10px; margin-top: 15px;">
+                            <button type="button" onclick="document.getElementById('add-member-form').reset(); document.getElementById('mem_start').valueAsDate = new Date();" style="flex: 1; padding: 10px; background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 4px; cursor: pointer; font-weight: bold;">إلغاء</button>
+                            <button type="submit" class="btn-primary" style="flex: 2; padding: 10px;">حفظ البيانات</button>
+                        </div>
+                    </form>
+                    <div id="add-msg" style="margin-top: 15px; font-weight: bold; text-align: center;"></div>
+                </div>
+            </div>
+
+            <!-- نافذة بطاقة المشترك (Modal) -->
+            <div id="card-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; z-index: 1000;">
+                <div style="background: white; padding: 20px; border-radius: 8px; width: 600px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); position: relative;">
+                    <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #cbd5e1; padding-bottom: 10px; margin-bottom: 15px;">
+                        <h3 style="margin: 0; color: #475569;">بطاقة المشترك</h3>
+                        <button onclick="document.getElementById('card-modal').style.display='none'" style="background: none; border: none; font-size: 18px; cursor: pointer; color: #94a3b8;">✖</button>
+                    </div>
+                    
+                    <div id="member-card-content" style="display: block;">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                            <div>
+                                <p><strong>رقم المشترك:</strong> <span id="mc_id"></span></p>
+                                <p><strong>الاسم:</strong> <span id="mc_name"></span></p>
+                                <p><strong>رقم الهاتف:</strong> <span id="mc_phone"></span></p>
+                                <p><strong>رقم البطاقة:</strong> <span id="mc_card"></span></p>
+                                <p><strong>العنوان:</strong> <span id="mc_address"></span></p>
+                                <p><strong>المدرب:</strong> <span id="mc_trainer"></span></p>
+                            </div>
+                            <div>
+                                <p><strong>نوع الاشتراك:</strong> <span id="mc_plan"></span></p>
+                                <p><strong>تاريخ البدء:</strong> <span id="mc_start"></span></p>
+                                <p><strong>تاريخ الانتهاء:</strong> <span id="mc_end"></span></p>
+                                <p><strong>ملاحظات:</strong> <span id="mc_notes"></span></p>
+                                <p><strong>الحالة:</strong> <span id="mc_status" style="font-weight: bold;"></span></p>
+                            </div>
+                        </div>
+                        <div style="margin-top: 20px; text-align: left;">
+                            <button class="btn-primary" style="background-color: #3b82f6;" onclick="document.getElementById('card-modal').style.display='none'">إغلاق</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- قسم البحث عن بطاقة المشترك -->
+            <div id="member-card-search" class="section">
+                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #3b82f6; padding-bottom: 10px; margin-bottom: 20px;">
+                    <h2 style="margin: 0;">البحث عن بطاقة المشترك</h2>
+                    <div style="display: flex; gap: 10px;">
+                        <input type="text" id="card_search_input" placeholder="ابحث بالاسم أو رقم الهاتف لعرض البطاقة..." style="width: 400px; padding: 10px; border: 1px solid #cbd5e1; border-radius: 4px;">
+                        <button class="btn-primary" style="background-color: #3b82f6;" onclick="searchMemberCard()">بحث</button>
+                    </div>
+                </div>
+
+                <div id="card-placeholder" style="border: 2px solid #3b82f6; border-radius: 8px; padding: 50px; text-align: center; max-width: 600px; margin: 50px auto;">
+                    <h2 style="color: #2563eb; margin-bottom: 10px;">بطاقة المشترك - نظام الصالة الرياضية</h2>
+                    <p style="font-weight: bold;">يرجى البحث عن مشترك لعرض بطاقته هنا</p>
+                </div>
+            </div>
+
+            <!-- قسم إعدادات النظام -->
+            <div id="plans-settings" class="section">
+                <h2 class="section-title">إعدادات النظام</h2>
+                
+                <!-- معلومات القاعة -->
+                <div style="background: #ffffff; padding: 20px; border: 1px solid #cbd5e1; border-radius: 8px; margin-bottom: 20px; max-width: 800px;">
+                    <h3 style="margin-top: 0; color: #2563eb; border-bottom: 1px solid #cbd5e1; padding-bottom: 10px;">معلومات القاعة ⚙️</h3>
+                    <form id="settings-form" style="display: grid; grid-template-columns: 1fr 3fr; gap: 15px; align-items: center; margin-top: 20px;">
+                        <label style="font-weight: bold;">اسم القاعة:</label>
+                        <input type="text" id="set_gym_name" required style="padding: 10px; border: 1px solid #cbd5e1; border-radius: 4px;">
+
+                        <label style="font-weight: bold;">رقم الهاتف:</label>
+                        <input type="text" id="set_gym_phone" style="padding: 10px; border: 1px solid #cbd5e1; border-radius: 4px;">
+
+                        <label style="font-weight: bold;">العنوان:</label>
+                        <input type="text" id="set_gym_address" style="padding: 10px; border: 1px solid #cbd5e1; border-radius: 4px;">
+
+                        <label style="font-weight: bold;">منفذ قفل الباب (COM Port):</label>
+                        <input type="text" id="set_door_com_port" placeholder="مثال: COM3" style="padding: 10px; border: 1px solid #cbd5e1; border-radius: 4px;">
+
+                        <div></div>
+                        <button type="submit" class="btn-primary" style="padding: 12px; font-size: 16px; margin-top: 10px;">حفظ الإعدادات</button>
+                    </form>
+                    <div id="settings-msg" style="margin-top: 15px; font-weight: bold; text-align: center;"></div>
+                </div>
+
+                <!-- إعدادات الاشتراكات -->
+                <div style="display: flex; gap: 20px; max-width: 1000px;">
+                    <div style="flex: 1; background: #ffffff; padding: 20px; border: 1px solid #cbd5e1; border-radius: 8px;">
+                        <h3 style="margin-top: 0; color: #10b981;">إضافة اشتراك جديد ➕</h3>
+                        <form id="plan-form" style="display: flex; flex-direction: column; gap: 15px; margin-top: 15px;">
+                            <label>الاسم:</label>
+                            <input type="text" id="plan_name" required style="padding: 8px; border: 1px solid #cbd5e1; border-radius: 4px;">
+                            
+                            <label>السعر:</label>
+                            <input type="number" id="plan_price" required style="padding: 8px; border: 1px solid #cbd5e1; border-radius: 4px;">
+                            
+                            <label>المدة (أيام):</label>
+                            <input type="number" id="plan_duration" required style="padding: 8px; border: 1px solid #cbd5e1; border-radius: 4px;">
+                            
+                            <button type="submit" class="btn-primary" style="background-color: #10b981;">إضافة الاشتراك</button>
+                        </form>
+                        <div id="plan-msg" style="margin-top: 10px; font-weight: bold;"></div>
+                    </div>
+
+                    <div style="flex: 2; background: #ffffff; padding: 20px; border: 1px solid #cbd5e1; border-radius: 8px;">
+                        <h3 style="margin-top: 0; color: #64748b; border-bottom: 1px solid #cbd5e1; padding-bottom: 10px;">الاشتراكات المتاحة 💡</h3>
+                        <table style="margin-top: 15px;">
+                            <thead>
+                                <tr>
+                                    <th>الاسم</th>
+                                    <th>السعر</th>
+                                    <th>المدة (أيام)</th>
+                                    <th>إجراءات</th>
+                                </tr>
+                            </thead>
+                            <tbody id="plans-table-body">
+                                <tr><td colspan="4">جاري التحميل...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- قسم بوابة الدخول (الوجه) -->
+            <div id="face-entry" class="section">
+                <div style="display: flex; gap: 20px; height: 100%;">
+                    
+                    <div style="flex: 1; max-width: 300px; background: #e2e8f0; border-radius: 8px; display: flex; align-items: center; justify-content: center; padding: 20px;">
+                        <h2 id="face-status-text" style="color: #475569; text-align: center;">نظام المراقبة متوقف</h2>
+                    </div>
+
+                    <div style="flex: 3; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+                        <div style="width: 100%; max-width: 800px; height: 450px; background-color: #000; border-radius: 8px; overflow: hidden; display: flex; justify-content: center; align-items: center; border: 4px solid #cbd5e1;">
+                            <img id="video-feed" style="display: none; width: 100%; height: 100%; object-fit: contain;" />
+                        </div>
+                        
+                        <button id="btn-toggle-camera" class="btn-primary" style="background-color: #10b981; margin-top: 20px; width: 100%; max-width: 800px; font-size: 18px; padding: 15px;" onclick="toggleCamera()">بدء المراقبة</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- سجل الاشتراكات عامة (المدفوعات) -->
+            <div id="payments" class="section">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <h2 class="section-title">سجل المدفوعات والاشتراكات</h2>
+                    <button class="btn-primary" style="font-size: 20px;" onclick="document.getElementById('payment-modal').style.display='flex'">+</button>
+                </div>
+                
+                <!-- نافذة الدفع اليدوي -->
+                <div id="payment-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; z-index: 1000;">
+                    <div style="background: white; padding: 20px; border-radius: 8px; width: 400px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                        <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #cbd5e1; padding-bottom: 10px; margin-bottom: 15px;">
+                            <h3 style="margin: 0; color: #475569;">إضافة دفعة يدوية / مبيعات</h3>
+                            <button onclick="document.getElementById('payment-modal').style.display='none'" style="background: none; border: none; font-size: 18px; cursor: pointer; color: #94a3b8;">✖</button>
+                        </div>
+                        <form id="payment-form" style="display: flex; flex-direction: column; gap: 15px;">
+                            <div>
+                                <label style="display: block; font-weight: bold; margin-bottom: 5px;">المشترك / الوصف:</label>
+                                <input type="text" id="pay_desc" placeholder="مثال: زينب / ملتي فيتامين, مكملات..." style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 4px;" required>
+                            </div>
+                            <div>
+                                <label style="display: block; font-weight: bold; margin-bottom: 5px;">المبلغ (د.ع):</label>
+                                <input type="number" id="pay_amount" placeholder="المبلغ بالدينار" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 4px;" required>
+                            </div>
+                            <div>
+                                <label style="display: block; font-weight: bold; margin-bottom: 5px;">طريقة الدفع:</label>
+                                <select id="pay_method" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 4px;">
+                                    <option value="نقدي">نقدي</option>
+                                    <option value="زين كاش">زين كاش</option>
+                                    <option value="حوالة">حوالة</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label style="display: block; font-weight: bold; margin-bottom: 5px;">رقم الوصل:</label>
+                                <input type="text" id="pay_receipt" placeholder="رقم الوصل (اختياري)" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 4px;">
+                            </div>
+                            <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 10px;">
+                                <button type="button" class="btn-danger" style="background-color: #f1f5f9; color: #475569;" onclick="document.getElementById('payment-modal').style.display='none'">إلغاء</button>
+                                <button type="submit" class="btn-primary" style="background-color: #3b82f6;">حفظ الدفعة</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <table style="margin-top: 15px;">
+                    <thead>
+                        <tr>
+                            <th>رقم الوصل</th>
+                            <th>المشترك / الوصف</th>
+                            <th>المبلغ المدفوع</th>
+                            <th>طريقة الدفع</th>
+                            <th>التاريخ</th>
+                            <th>الإجراءات / الحالة</th>
+                        </tr>
+                    </thead>
+                    <tbody id="payments-table-body">
+                        <tr><td colspan="6">جاري التحميل...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- الإحصائيات الشاملة (التقارير) -->
+            <div id="reports" class="section">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <div style="display: flex; gap: 10px;">
+                        <input type="file" id="excel-upload" style="display: none;" accept=".xlsx,.xls" onchange="uploadExcelFile(this)">
+                        <button class="btn-primary" style="background-color: #f59e0b;" onclick="document.getElementById('excel-upload').click()">استيراد من Excel 📥</button>
+                        <button class="btn-primary" style="background-color: #10b981;" onclick="exportExcel()">تصدير إلى Excel 📤</button>
+                    </div>
+                    <h2 class="section-title" style="margin: 0;">الإحصائيات الشاملة والتقارير المالية</h2>
+                </div>
+
+                <div class="stats-grid" style="grid-template-columns: repeat(3, 1fr); margin-bottom: 30px;">
+                    <div class="stat-card" style="border: 2px solid #a855f7;">
+                        <h3 style="color: #a855f7; margin-top: 0; font-size: 16px;">المشتركين النشطين</h3>
+                        <p class="stat-value" id="rep_active" style="color: #a855f7;">0</p>
+                    </div>
+                    <div class="stat-card" style="border: 2px solid #3b82f6;">
+                        <h3 style="color: #3b82f6; margin-top: 0; font-size: 16px;">إجمالي المشتركين الفعليين</h3>
+                        <p class="stat-value" id="rep_total" style="color: #3b82f6;">0</p>
+                    </div>
+                    <div class="stat-card" style="border: 2px solid #10b981;">
+                        <h3 style="color: #10b981; margin-top: 0; font-size: 16px;">إيرادات هذا الشهر</h3>
+                        <p class="stat-value" id="rep_revenue" style="color: #10b981;">0 د.ع</p>
+                    </div>
+                </div>
+
+                <h3 style="color: #64748b; margin-top: 20px;">أحدث المدفوعات</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>المشترك / الوصف</th>
+                            <th>المبلغ المدفوع</th>
+                            <th>طريقة الدفع</th>
+                            <th>التاريخ</th>
+                        </tr>
+                    </thead>
+                    <tbody id="reports-payments-body">
+                        <tr><td colspan="4">جاري التحميل...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- الكادر -->
+            <div id="staff" class="section">
+                <div style="display: flex; justify-content: flex-end; margin-bottom: 15px;">
+                    <button class="btn-primary" style="background-color: #3b82f6;" onclick="document.getElementById('staff-form-container').style.display = 'block'">إضافة كادر جديد ➕</button>
+                </div>
+                
+                <div id="staff-form-container" style="display: none; background: #fff; padding: 20px; border: 1px solid #cbd5e1; border-radius: 8px; margin-bottom: 20px;">
+                    <form id="staff-form" style="display: flex; gap: 10px; align-items: flex-end;">
+                        <div style="flex:1;"><label>الاسم</label><input type="text" id="staff_name" required style="width:100%; padding:8px;"></div>
+                        <div style="flex:1;"><label>المنصب</label><input type="text" id="staff_role" required style="width:100%; padding:8px;"></div>
+                        <div style="flex:1;"><label>الراتب</label><input type="number" id="staff_salary" style="width:100%; padding:8px;"></div>
+                        <div style="flex:1;"><label>النوع</label>
+                            <select id="staff_type" style="width:100%; padding:8px;">
+                                <option value="ثابت">ثابت</option>
+                                <option value="نسبة">نسبة</option>
+                            </select>
+                        </div>
+                        <div style="flex:1;"><label>الهاتف</label><input type="text" id="staff_phone" style="width:100%; padding:8px;"></div>
+                        <button type="submit" class="btn-primary" style="height: 40px;">حفظ</button>
+                        <button type="button" class="btn-danger" style="height: 40px;" onclick="document.getElementById('staff-form-container').style.display = 'none'">إلغاء</button>
+                    </form>
+                </div>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th>الاسم</th>
+                            <th>المنصب</th>
+                            <th>الراتب</th>
+                            <th>النوع</th>
+                            <th>الهاتف</th>
+                            <th>إجراءات</th>
+                        </tr>
+                    </thead>
+                    <tbody id="staff-table-body">
+                        <tr><td colspan="6">جاري التحميل...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>

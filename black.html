@@ -1,0 +1,926 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>باور جيم - نظام إدارة الاشتراكات</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800&display=swap');
+body { font-family: 'Cairo', sans-serif; }
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: #f1f5f9; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+</style>
+<base target="_blank">
+</head>
+<body class="bg-slate-50">
+
+<div id="app" class="min-h-screen">
+  <!-- Sidebar -->
+  <aside id="sidebar" class="fixed right-0 top-0 h-full w-64 bg-slate-900 text-white transform transition-transform duration-300 z-50 translate-x-0">
+    <div class="p-6 border-b border-slate-700">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center text-xl font-bold">💪</div>
+        <div>
+          <h1 class="font-bold text-lg">باور جيم</h1>
+          <p class="text-xs text-slate-400">نظام الاشتراكات</p>
+        </div>
+      </div>
+    </div>
+    <nav class="p-4 space-y-2">
+      <button onclick="navigate('dashboard')" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-slate-800 transition-colors text-right bg-emerald-600" data-page="dashboard">
+        <span>📊</span> لوحة التحكم
+      </button>
+      <button onclick="navigate('members')" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-slate-800 transition-colors text-right" data-page="members">
+        <span>👥</span> الأعضاء
+      </button>
+      <button onclick="navigate('subscriptions')" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-slate-800 transition-colors text-right" data-page="subscriptions">
+        <span>🎫</span> الاشتراكات
+      </button>
+      <button onclick="navigate('payments')" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-slate-800 transition-colors text-right" data-page="payments">
+        <span>💳</span> المدفوعات
+      </button>
+      <button onclick="navigate('reports')" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-slate-800 transition-colors text-right" data-page="reports">
+        <span>📈</span> التقارير
+      </button>
+      <button onclick="navigate('settings')" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-slate-800 transition-colors text-right" data-page="settings">
+        <span>⚙️</span> الإعدادات
+      </button>
+    </nav>
+    <div class="absolute bottom-0 w-full p-4 border-t border-slate-700">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 bg-slate-700 rounded-full flex items-center justify-center">👤</div>
+        <div>
+          <p class="text-sm font-medium">المدير</p>
+          <p class="text-xs text-slate-400">مدير النظام</p>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <div id="mobile-overlay" class="fixed inset-0 bg-black/50 z-40 hidden lg:hidden" onclick="toggleSidebar()"></div>
+
+  <!-- Main Content -->
+  <main class="mr-0 lg:mr-64 min-h-screen transition-all duration-300">
+    <header class="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between sticky top-0 z-30">
+      <div class="flex items-center gap-4">
+        <button onclick="toggleSidebar()" class="lg:hidden p-2 hover:bg-slate-100 rounded-lg">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+        </button>
+        <h2 id="page-title" class="text-xl font-bold text-slate-800">لوحة التحكم</h2>
+      </div>
+      <div class="flex items-center gap-4">
+        <button onclick="showNotification('🔔 لديك 3 اشتراكات تنتهي قريباً')" class="relative p-2 hover:bg-slate-100 rounded-lg">
+          <svg class="w-6 h-6 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+          <span class="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
+        </button>
+        <span id="current-date" class="text-sm text-slate-500 hidden sm:block"></span>
+      </div>
+    </header>
+
+    <div id="content" class="p-6">
+      <!-- Dashboard -->
+      <div id="page-dashboard" class="page">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 hover:shadow-md transition-shadow">
+            <div class="flex items-center justify-between mb-4">
+              <div class="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center text-2xl">👥</div>
+              <span class="text-xs font-medium text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full">+12 هذا الشهر</span>
+            </div>
+            <h3 class="text-2xl font-bold text-slate-800" id="stat-total-members">0</h3>
+            <p class="text-sm text-slate-500">إجمالي الأعضاء</p>
+          </div>
+          <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 hover:shadow-md transition-shadow">
+            <div class="flex items-center justify-between mb-4">
+              <div class="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center text-2xl">✅</div>
+              <span class="text-xs font-medium text-blue-600 bg-blue-50 px-2 py-1 rounded-full">نشط</span>
+            </div>
+            <h3 class="text-2xl font-bold text-slate-800" id="stat-active-members">0</h3>
+            <p class="text-sm text-slate-500">اشتراكات نشطة</p>
+          </div>
+          <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 hover:shadow-md transition-shadow">
+            <div class="flex items-center justify-between mb-4">
+              <div class="w-12 h-12 bg-amber-100 rounded-xl flex items-center justify-center text-2xl">⏰</div>
+              <span class="text-xs font-medium text-amber-600 bg-amber-50 px-2 py-1 rounded-full">تحذير</span>
+            </div>
+            <h3 class="text-2xl font-bold text-slate-800" id="stat-expiring">0</h3>
+            <p class="text-sm text-slate-500">تنتهي خلال 7 أيام</p>
+          </div>
+          <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 hover:shadow-md transition-shadow">
+            <div class="flex items-center justify-between mb-4">
+              <div class="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center text-2xl">💰</div>
+              <span class="text-xs font-medium text-purple-600 bg-purple-50 px-2 py-1 rounded-full">هذا الشهر</span>
+            </div>
+            <h3 class="text-2xl font-bold text-slate-800" id="stat-revenue">0 د.ع</h3>
+            <p class="text-sm text-slate-500">إيرادات الشهر</p>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
+            <h3 class="font-bold text-slate-800 mb-4">📊 توزيع الاشتراكات</h3>
+            <div id="chart-subscriptions" class="h-64 flex items-end justify-center gap-3 flex-wrap"></div>
+          </div>
+          <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
+            <h3 class="font-bold text-slate-800 mb-4">⚠️ اشتراكات تنتهي قريباً</h3>
+            <div id="expiring-list" class="space-y-3 max-h-64 overflow-y-auto"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Members -->
+      <div id="page-members" class="page hidden">
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+          <div class="p-6 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div class="relative flex-1 max-w-md">
+              <input type="text" id="member-search" placeholder="ابحث باسم العضو أو رقم الهاتف..."
+                class="w-full pr-10 pl-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                oninput="filterMembers()">
+              <span class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">🔍</span>
+            </div>
+            <button onclick="openModal('member-modal')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-xl font-medium transition-colors flex items-center gap-2">
+              <span>+</span> عضو جديد
+            </button>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full">
+              <thead class="bg-slate-50">
+                <tr>
+                  <th class="px-6 py-4 text-right text-sm font-semibold text-slate-600">العضو</th>
+                  <th class="px-6 py-4 text-right text-sm font-semibold text-slate-600">رقم الهاتف</th>
+                  <th class="px-6 py-4 text-right text-sm font-semibold text-slate-600">نوع الاشتراك</th>
+                  <th class="px-6 py-4 text-right text-sm font-semibold text-slate-600">تاريخ الانتهاء</th>
+                  <th class="px-6 py-4 text-right text-sm font-semibold text-slate-600">الحالة</th>
+                  <th class="px-6 py-4 text-right text-sm font-semibold text-slate-600">إجراءات</th>
+                </tr>
+              </thead>
+              <tbody id="members-table-body" class="divide-y divide-slate-100"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Subscriptions -->
+      <div id="page-subscriptions" class="page hidden">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+          <!-- VIP Monthly -->
+          <div class="bg-gradient-to-br from-amber-400 to-amber-600 rounded-2xl p-6 text-white relative overflow-hidden">
+            <div class="absolute top-2 left-2 bg-white/20 px-3 py-1 rounded-full text-xs font-bold">VIP</div>
+            <h3 class="text-lg font-bold mb-2">VIP شهري</h3>
+            <p class="text-3xl font-bold mb-4">75,000 د.ع</p>
+            <ul class="space-y-2 text-sm opacity-90">
+              <li>✓ دخول غير محدود</li>
+              <li>✓ جميع الأجهزة</li>
+              <li>✓ خزانة شخصية</li>
+              <li>✓ جلسة تدريب خاصة</li>
+              <li>✓ ساونا وبخار</li>
+            </ul>
+            <button onclick="quickAddMember('VIP شهري', 75000)" class="mt-6 w-full bg-white/20 hover:bg-white/30 py-2 rounded-lg transition-colors">اشتراك سريع</button>
+          </div>
+          <!-- Private Monthly -->
+          <div class="bg-gradient-to-br from-blue-500 to-blue-700 rounded-2xl p-6 text-white relative overflow-hidden">
+            <div class="absolute top-2 left-2 bg-white/20 px-3 py-1 rounded-full text-xs font-bold">خاص</div>
+            <h3 class="text-lg font-bold mb-2">خاص شهري</h3>
+            <p class="text-3xl font-bold mb-4">50,000 د.ع</p>
+            <ul class="space-y-2 text-sm opacity-90">
+              <li>✓ دخول غير محدود</li>
+              <li>✓ جميع الأجهزة</li>
+              <li>✓ خزانة شخصية</li>
+              <li>✓ جلسة تدريب واحدة</li>
+            </ul>
+            <button onclick="quickAddMember('خاص شهري', 50000)" class="mt-6 w-full bg-white/20 hover:bg-white/30 py-2 rounded-lg transition-colors">اشتراك سريع</button>
+          </div>
+          <!-- Regular Monthly -->
+          <div class="bg-gradient-to-br from-emerald-500 to-emerald-700 rounded-2xl p-6 text-white relative overflow-hidden">
+            <div class="absolute top-2 left-2 bg-white/20 px-3 py-1 rounded-full text-xs font-bold">عادي</div>
+            <h3 class="text-lg font-bold mb-2">شهري</h3>
+            <p class="text-3xl font-bold mb-4">35,000 د.ع</p>
+            <ul class="space-y-2 text-sm opacity-90">
+              <li>✓ دخول غير محدود</li>
+              <li>✓ جميع الأجهزة</li>
+              <li>✓ خزانة شخصية</li>
+            </ul>
+            <button onclick="quickAddMember('شهري', 35000)" class="mt-6 w-full bg-white/20 hover:bg-white/30 py-2 rounded-lg transition-colors">اشتراك سريع</button>
+          </div>
+          <!-- Weekly -->
+          <div class="bg-gradient-to-br from-purple-500 to-purple-700 rounded-2xl p-6 text-white relative overflow-hidden">
+            <div class="absolute top-2 left-2 bg-white/20 px-3 py-1 rounded-full text-xs font-bold">أسبوعي</div>
+            <h3 class="text-lg font-bold mb-2">أسبوعي</h3>
+            <p class="text-3xl font-bold mb-4">12,000 د.ع</p>
+            <ul class="space-y-2 text-sm opacity-90">
+              <li>✓ دخول غير محدود</li>
+              <li>✓ جميع الأجهزة</li>
+              <li>✓ صالح لمدة 7 أيام</li>
+            </ul>
+            <button onclick="quickAddMember('أسبوعي', 12000)" class="mt-6 w-full bg-white/20 hover:bg-white/30 py-2 rounded-lg transition-colors">اشتراك سريع</button>
+          </div>
+          <!-- Daily -->
+          <div class="bg-gradient-to-br from-rose-500 to-rose-700 rounded-2xl p-6 text-white relative overflow-hidden">
+            <div class="absolute top-2 left-2 bg-white/20 px-3 py-1 rounded-full text-xs font-bold">يومي</div>
+            <h3 class="text-lg font-bold mb-2">يومي</h3>
+            <p class="text-3xl font-bold mb-4">3,000 د.ع</p>
+            <ul class="space-y-2 text-sm opacity-90">
+              <li>✓ دخول ليوم واحد</li>
+              <li>✓ جميع الأجهزة</li>
+              <li>✓ صالح ليوم واحد فقط</li>
+            </ul>
+            <button onclick="quickAddMember('يومي', 3000)" class="mt-6 w-full bg-white/20 hover:bg-white/30 py-2 rounded-lg transition-colors">اشتراك سريع</button>
+          </div>
+          <!-- 3 Months -->
+          <div class="bg-gradient-to-br from-teal-500 to-teal-700 rounded-2xl p-6 text-white relative overflow-hidden">
+            <div class="absolute top-2 left-2 bg-white/20 px-3 py-1 rounded-full text-xs font-bold">توفير</div>
+            <h3 class="text-lg font-bold mb-2">3 أشهر</h3>
+            <p class="text-3xl font-bold mb-4">90,000 د.ع</p>
+            <ul class="space-y-2 text-sm opacity-90">
+              <li>✓ توفير 15,000 د.ع</li>
+              <li>✓ جميع مميزات الشهري</li>
+              <li>✓ جلستان تدريب مجاناً</li>
+            </ul>
+            <button onclick="quickAddMember('3 أشهر', 90000)" class="mt-6 w-full bg-white/20 hover:bg-white/30 py-2 rounded-lg transition-colors">اشتراك سريع</button>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+          <div class="p-6 border-b border-slate-100">
+            <h3 class="font-bold text-slate-800">سجل الاشتراكات</h3>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full">
+              <thead class="bg-slate-50">
+                <tr>
+                  <th class="px-6 py-4 text-right text-sm font-semibold text-slate-600">العضو</th>
+                  <th class="px-6 py-4 text-right text-sm font-semibold text-slate-600">نوع الاشتراك</th>
+                  <th class="px-6 py-4 text-right text-sm font-semibold text-slate-600">المبلغ</th>
+                  <th class="px-6 py-4 text-right text-sm font-semibold text-slate-600">تاريخ البدء</th>
+                  <th class="px-6 py-4 text-right text-sm font-semibold text-slate-600">تاريخ الانتهاء</th>
+                  <th class="px-6 py-4 text-right text-sm font-semibold text-slate-600">الحالة</th>
+                </tr>
+              </thead>
+              <tbody id="subscriptions-table-body" class="divide-y divide-slate-100"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Payments -->
+      <div id="page-payments" class="page hidden">
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+          <div class="p-6 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <h3 class="font-bold text-slate-800">سجل المدفوعات</h3>
+            <div class="flex gap-2">
+              <select id="payment-filter" onchange="renderPayments()" class="px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                <option value="all">جميع المدفوعات</option>
+                <option value="month">هذا الشهر</option>
+                <option value="week">هذا الأسبوع</option>
+              </select>
+            </div>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full">
+              <thead class="bg-slate-50">
+                <tr>
+                  <th class="px-6 py-4 text-right text-sm font-semibold text-slate-600">رقم العملية</th>
+                  <th class="px-6 py-4 text-right text-sm font-semibold text-slate-600">العضو</th>
+                  <th class="px-6 py-4 text-right text-sm font-semibold text-slate-600">الاشتراك</th>
+                  <th class="px-6 py-4 text-right text-sm font-semibold text-slate-600">المبلغ</th>
+                  <th class="px-6 py-4 text-right text-sm font-semibold text-slate-600">طريقة الدفع</th>
+                  <th class="px-6 py-4 text-right text-sm font-semibold text-slate-600">التاريخ</th>
+                </tr>
+              </thead>
+              <tbody id="payments-table-body" class="divide-y divide-slate-100"></tbody>
+            </table>
+          </div>
+          <div class="p-6 border-t border-slate-100 bg-slate-50">
+            <div class="flex justify-between items-center">
+              <span class="font-bold text-slate-700">إجمالي المدفوعات:</span>
+              <span class="text-2xl font-bold text-emerald-600" id="total-payments">0 د.ع</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Reports -->
+      <div id="page-reports" class="page hidden">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
+            <h3 class="font-bold text-slate-800 mb-4">📈 الإيرادات الشهرية</h3>
+            <div id="chart-revenue" class="h-64 flex items-end justify-center gap-2"></div>
+          </div>
+          <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
+            <h3 class="font-bold text-slate-800 mb-4">👥 نمو الأعضاء</h3>
+            <div id="chart-growth" class="h-64 flex items-end justify-center gap-2"></div>
+          </div>
+        </div>
+        <div class="mt-6 bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
+          <h3 class="font-bold text-slate-800 mb-4">📋 ملخص النشاط</h3>
+          <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div class="text-center p-4 bg-slate-50 rounded-xl">
+              <p class="text-2xl font-bold text-emerald-600" id="report-new">0</p>
+              <p class="text-sm text-slate-500">أعضاء جدد</p>
+            </div>
+            <div class="text-center p-4 bg-slate-50 rounded-xl">
+              <p class="text-2xl font-bold text-blue-600" id="report-renew">0</p>
+              <p class="text-sm text-slate-500">تجديدات</p>
+            </div>
+            <div class="text-center p-4 bg-slate-50 rounded-xl">
+              <p class="text-2xl font-bold text-amber-600" id="report-expired">0</p>
+              <p class="text-sm text-slate-500">منتهية</p>
+            </div>
+            <div class="text-center p-4 bg-slate-50 rounded-xl">
+              <p class="text-2xl font-bold text-red-600" id="report-cancel">0</p>
+              <p class="text-sm text-slate-500">ملغاة</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Settings -->
+      <div id="page-settings" class="page hidden">
+        <div class="max-w-2xl mx-auto bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+          <div class="p-6 border-b border-slate-100">
+            <h3 class="font-bold text-slate-800">⚙️ إعدادات النظام</h3>
+          </div>
+          <div class="p-6 space-y-6">
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-2">اسم القاعة</label>
+              <input type="text" value="باور جيم" class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-2">رقم الهاتف</label>
+              <input type="text" value="0770 000 0000" class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-2">العنوان</label>
+              <input type="text" value="بغداد، العراق" class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500">
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm font-medium text-slate-700 mb-2">VIP شهري (د.ع)</label>
+                <input type="number" value="75000" class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500">
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-slate-700 mb-2">خاص شهري (د.ع)</label>
+                <input type="number" value="50000" class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500">
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-slate-700 mb-2">شهري (د.ع)</label>
+                <input type="number" value="35000" class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500">
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-slate-700 mb-2">أسبوعي (د.ع)</label>
+                <input type="number" value="12000" class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500">
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-slate-700 mb-2">يومي (د.ع)</label>
+                <input type="number" value="3000" class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500">
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-slate-700 mb-2">3 أشهر (د.ع)</label>
+                <input type="number" value="90000" class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500">
+              </div>
+            </div>
+            <div class="flex items-center justify-between p-4 bg-slate-50 rounded-xl">
+              <div>
+                <p class="font-medium text-slate-800">تنبيهات انتهاء الاشتراك</p>
+                <p class="text-sm text-slate-500">إرسال إشعار قبل 7 أيام من الانتهاء</p>
+              </div>
+              <label class="relative inline-flex items-center cursor-pointer">
+                <input type="checkbox" checked class="sr-only peer">
+                <div class="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:right-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+              </label>
+            </div>
+            <div class="flex gap-3">
+              <button onclick="showNotification('✅ تم حفظ الإعدادات بنجاح')" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-xl font-medium transition-colors">حفظ الإعدادات</button>
+              <button onclick="exportData()" class="px-6 py-3 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors">تصدير البيانات</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Add Member Modal -->
+  <div id="member-modal" class="fixed inset-0 bg-black/50 z-50 hidden items-center justify-center p-4">
+    <div class="bg-white rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+      <div class="p-6 border-b border-slate-100 flex items-center justify-between">
+        <h3 class="font-bold text-xl text-slate-800">إضافة عضو جديد</h3>
+        <button onclick="closeModal('member-modal')" class="text-slate-400 hover:text-slate-600 text-2xl">&times;</button>
+      </div>
+      <form id="member-form" onsubmit="saveMember(event)" class="p-6 space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-2">الاسم الكامل *</label>
+          <input type="text" name="name" required class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="محمد أحمد">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-2">رقم الهاتف *</label>
+          <input type="tel" name="phone" required class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="0770 000 0000">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-2">البريد الإلكتروني</label>
+          <input type="email" name="email" class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="example@email.com">
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-2">نوع الاشتراك *</label>
+            <select name="plan" id="plan-select" required onchange="updatePrice()" class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500">
+              <option value="VIP شهري">VIP شهري - 75,000 د.ع</option>
+              <option value="خاص شهري">خاص شهري - 50,000 د.ع</option>
+              <option value="شهري">شهري - 35,000 د.ع</option>
+              <option value="أسبوعي">أسبوعي - 12,000 د.ع</option>
+              <option value="يومي">يومي - 3,000 د.ع</option>
+              <option value="3 أشهر">3 أشهر - 90,000 د.ع</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-2">طريقة الدفع</label>
+            <select name="payment" class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500">
+              <option value="نقدي">نقدي</option>
+              <option value="بطاقة">بطاقة</option>
+              <option value="تحويل">تحويل بنكي</option>
+            </select>
+          </div>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-2">تاريخ البدء</label>
+          <input type="date" name="startDate" id="start-date" required class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500">
+        </div>
+        <div class="bg-slate-50 p-4 rounded-xl">
+          <div class="flex justify-between items-center">
+            <span class="text-slate-600">المبلغ الإجمالي:</span>
+            <span class="text-2xl font-bold text-emerald-600" id="plan-price">75,000 د.ع</span>
+          </div>
+        </div>
+        <div class="flex gap-3 pt-2">
+          <button type="submit" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-xl font-medium transition-colors">حفظ العضو</button>
+          <button type="button" onclick="closeModal('member-modal')" class="px-6 py-3 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors">إلغاء</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="fixed top-4 left-1/2 -translate-x-1/2 bg-slate-800 text-white px-6 py-3 rounded-xl shadow-lg transform -translate-y-20 transition-transform duration-300 z-50 flex items-center gap-2">
+    <span id="toast-message"></span>
+  </div>
+
+  <!-- Delete Modal -->
+  <div id="delete-modal" class="fixed inset-0 bg-black/50 z-50 hidden items-center justify-center p-4">
+    <div class="bg-white rounded-2xl w-full max-w-sm p-6 text-center">
+      <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl">🗑️</div>
+      <h3 class="font-bold text-xl text-slate-800 mb-2">تأكيد الحذف</h3>
+      <p class="text-slate-500 mb-6">هل أنت متأكد من حذف هذا العضو؟ لا يمكن التراجع عن هذا الإجراء.</p>
+      <div class="flex gap-3">
+        <button onclick="confirmDelete()" class="flex-1 bg-red-600 hover:bg-red-700 text-white py-3 rounded-xl font-medium transition-colors">حذف</button>
+        <button onclick="closeModal('delete-modal')" class="flex-1 border border-slate-200 py-3 rounded-xl hover:bg-slate-50 transition-colors">إلغاء</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const PLAN_CONFIG = {
+  'VIP شهري': { price: 75000, duration: 1, unit: 'month' },
+  'خاص شهري': { price: 50000, duration: 1, unit: 'month' },
+  'شهري': { price: 35000, duration: 1, unit: 'month' },
+  'أسبوعي': { price: 12000, duration: 7, unit: 'day' },
+  'يومي': { price: 3000, duration: 1, unit: 'day' },
+  '3 أشهر': { price: 90000, duration: 3, unit: 'month' }
+};
+
+let members = JSON.parse(localStorage.getItem('gym_members_iq')) || [];
+let payments = JSON.parse(localStorage.getItem('gym_payments_iq')) || [];
+let deleteTargetId = null;
+
+function formatIQD(num) {
+  return num.toLocaleString('en-IQ') + ' د.ع';
+}
+
+if (members.length === 0) {
+  const demoMembers = [
+    { id: 1, name: 'أحمد محمد', phone: '07701234567', email: 'ahmed@email.com', plan: 'VIP شهري', price: 75000, startDate: '2026-07-01', endDate: '2026-08-01', status: 'active', paymentMethod: 'نقدي' },
+    { id: 2, name: 'خالد عبدالله', phone: '07719876543', email: 'khaled@email.com', plan: 'خاص شهري', price: 50000, startDate: '2026-06-15', endDate: '2026-07-15', status: 'expiring', paymentMethod: 'بطاقة' },
+    { id: 3, name: 'سعد العتيبي', phone: '07701122334', email: 'saad@email.com', plan: 'شهري', price: 35000, startDate: '2026-07-10', endDate: '2026-08-10', status: 'active', paymentMethod: 'تحويل' },
+    { id: 4, name: 'فهد السالم', phone: '07705566778', email: 'fahad@email.com', plan: 'أسبوعي', price: 12000, startDate: '2026-07-15', endDate: '2026-07-22', status: 'active', paymentMethod: 'نقدي' },
+    { id: 5, name: 'ناصر الدوسري', phone: '07709988776', email: 'nasser@email.com', plan: 'يومي', price: 3000, startDate: '2026-07-19', endDate: '2026-07-19', status: 'active', paymentMethod: 'بطاقة' },
+    { id: 6, name: 'عبدالرحمن الشمري', phone: '07704443322', email: 'abdul@email.com', plan: '3 أشهر', price: 90000, startDate: '2026-05-01', endDate: '2026-08-01', status: 'expiring', paymentMethod: 'نقدي' },
+    { id: 7, name: 'ماجد الحربي', phone: '07707766554', email: 'majed@email.com', plan: 'VIP شهري', price: 75000, startDate: '2026-07-05', endDate: '2026-08-05', status: 'active', paymentMethod: 'تحويل' },
+    { id: 8, name: 'سلطان القحطاني', phone: '07708899001', email: 'sultan@email.com', plan: 'شهري', price: 35000, startDate: '2026-06-20', endDate: '2026-07-20', status: 'expiring', paymentMethod: 'بطاقة' },
+  ];
+  members = demoMembers;
+  localStorage.setItem('gym_members_iq', JSON.stringify(members));
+
+  payments = members.map(m => ({
+    id: Date.now() + m.id,
+    memberId: m.id,
+    memberName: m.name,
+    plan: m.plan,
+    amount: m.price,
+    method: m.paymentMethod,
+    date: m.startDate
+  }));
+  localStorage.setItem('gym_payments_iq', JSON.stringify(payments));
+}
+
+function navigate(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.add('hidden'));
+  document.getElementById('page-' + page).classList.remove('hidden');
+
+  document.querySelectorAll('.nav-btn').forEach(btn => {
+    btn.classList.remove('bg-emerald-600');
+    btn.classList.add('hover:bg-slate-800');
+  });
+  document.querySelector('[data-page="' + page + '"]').classList.add('bg-emerald-600');
+  document.querySelector('[data-page="' + page + '"]').classList.remove('hover:bg-slate-800');
+
+  const titles = {
+    dashboard: 'لوحة التحكم',
+    members: 'الأعضاء',
+    subscriptions: 'الاشتراكات',
+    payments: 'المدفوعات',
+    reports: 'التقارير',
+    settings: 'الإعدادات'
+  };
+  document.getElementById('page-title').textContent = titles[page];
+
+  if (window.innerWidth < 1024) toggleSidebar();
+  renderPage(page);
+}
+
+function toggleSidebar() {
+  const sidebar = document.getElementById('sidebar');
+  const overlay = document.getElementById('mobile-overlay');
+  sidebar.classList.toggle('translate-x-0');
+  sidebar.classList.toggle('translate-x-full');
+  overlay.classList.toggle('hidden');
+}
+
+function renderPage(page) {
+  if (page === 'dashboard') renderDashboard();
+  if (page === 'members') renderMembers();
+  if (page === 'subscriptions') renderSubscriptions();
+  if (page === 'payments') renderPayments();
+  if (page === 'reports') renderReports();
+}
+
+function renderDashboard() {
+  const today = new Date();
+  const activeMembers = members.filter(m => new Date(m.endDate) >= today).length;
+  const expiringMembers = members.filter(m => {
+    const end = new Date(m.endDate);
+    const diff = (end - today) / (1000 * 60 * 60 * 24);
+    return diff >= 0 && diff <= 7;
+  });
+  const monthRevenue = payments.filter(p => {
+    const d = new Date(p.date);
+    return d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear();
+  }).reduce((sum, p) => sum + p.amount, 0);
+
+  document.getElementById('stat-total-members').textContent = members.length;
+  document.getElementById('stat-active-members').textContent = activeMembers;
+  document.getElementById('stat-expiring').textContent = expiringMembers.length;
+  document.getElementById('stat-revenue').textContent = formatIQD(monthRevenue);
+
+  const plans = {};
+  members.forEach(m => { plans[m.plan] = (plans[m.plan] || 0) + 1; });
+  const maxVal = Math.max(...Object.values(plans)) || 1;
+  const planColors = {
+    'VIP شهري': 'bg-amber-500',
+    'خاص شهري': 'bg-blue-500',
+    'شهري': 'bg-emerald-500',
+    'أسبوعي': 'bg-purple-500',
+    'يومي': 'bg-rose-500',
+    '3 أشهر': 'bg-teal-500'
+  };
+
+  document.getElementById('chart-subscriptions').innerHTML = Object.entries(plans).map(([plan, count]) =>
+    '<div class="flex flex-col items-center gap-2 min-w-[80px]">' +
+      '<div class="text-sm font-bold text-slate-700">' + count + '</div>' +
+      '<div class="w-12 ' + (planColors[plan] || 'bg-slate-500') + ' rounded-t-lg transition-all duration-500" style="height: ' + ((count/maxVal)*160) + 'px"></div>' +
+      '<div class="text-xs text-slate-500 text-center leading-tight">' + plan + '</div>' +
+    '</div>'
+  ).join('');
+
+  document.getElementById('expiring-list').innerHTML = expiringMembers.length ? expiringMembers.map(m => {
+    const daysLeft = Math.ceil((new Date(m.endDate) - today) / (1000 * 60 * 60 * 24));
+    return '<div class="flex items-center justify-between p-3 bg-amber-50 rounded-xl border border-amber-100">' +
+      '<div class="flex items-center gap-3">' +
+        '<div class="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center text-lg">⏰</div>' +
+        '<div>' +
+          '<p class="font-medium text-slate-800">' + m.name + '</p>' +
+          '<p class="text-xs text-slate-500">' + m.phone + ' · ' + m.plan + '</p>' +
+        '</div>' +
+      '</div>' +
+      '<div class="text-left">' +
+        '<p class="text-sm font-bold text-amber-600">' + daysLeft + ' يوم</p>' +
+        '<p class="text-xs text-slate-400">' + m.endDate + '</p>' +
+      '</div>' +
+    '</div>';
+  }).join('') : '<p class="text-center text-slate-400 py-8">لا توجد اشتراكات تنتهي قريباً ✅</p>';
+}
+
+function renderMembers(filter) {
+  filter = filter || '';
+  const tbody = document.getElementById('members-table-body');
+  const filtered = members.filter(m => m.name.includes(filter) || m.phone.includes(filter));
+
+  tbody.innerHTML = filtered.map(m => {
+    const today = new Date();
+    const end = new Date(m.endDate);
+    const isActive = end >= today;
+    const daysLeft = Math.ceil((end - today) / (1000 * 60 * 60 * 24));
+
+    let statusBadge = '';
+    if (isActive && daysLeft <= 7) {
+      statusBadge = '<span class="px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-xs font-medium">تنتهي قريباً</span>';
+    } else if (isActive) {
+      statusBadge = '<span class="px-3 py-1 bg-emerald-100 text-emerald-700 rounded-full text-xs font-medium">نشط</span>';
+    } else {
+      statusBadge = '<span class="px-3 py-1 bg-red-100 text-red-700 rounded-full text-xs font-medium">منتهي</span>';
+    }
+
+    const planBadge = {
+      'VIP شهري': 'bg-amber-100 text-amber-700',
+      'خاص شهري': 'bg-blue-100 text-blue-700',
+      'شهري': 'bg-emerald-100 text-emerald-700',
+      'أسبوعي': 'bg-purple-100 text-purple-700',
+      'يومي': 'bg-rose-100 text-rose-700',
+      '3 أشهر': 'bg-teal-100 text-teal-700'
+    }[m.plan] || 'bg-slate-100 text-slate-700';
+
+    return '<tr class="hover:bg-slate-50 transition-colors">' +
+      '<td class="px-6 py-4">' +
+        '<div class="flex items-center gap-3">' +
+          '<div class="w-10 h-10 bg-slate-200 rounded-full flex items-center justify-center text-lg">👤</div>' +
+          '<div>' +
+            '<p class="font-medium text-slate-800">' + m.name + '</p>' +
+            '<p class="text-xs text-slate-400">' + (m.email || 'بدون بريد') + '</p>' +
+          '</div>' +
+        '</div>' +
+      '</td>' +
+      '<td class="px-6 py-4 text-sm text-slate-600">' + m.phone + '</td>' +
+      '<td class="px-6 py-4"><span class="px-3 py-1 ' + planBadge + ' rounded-full text-xs font-medium">' + m.plan + '</span></td>' +
+      '<td class="px-6 py-4 text-sm text-slate-600">' + m.endDate + '</td>' +
+      '<td class="px-6 py-4">' + statusBadge + '</td>' +
+      '<td class="px-6 py-4">' +
+        '<div class="flex items-center gap-2">' +
+          '<button onclick="renewMember(' + m.id + ')" class="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors" title="تجديد">🔄</button>' +
+          '<button onclick="editMember(' + m.id + ')" class="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="تعديل">✏️</button>' +
+          '<button onclick="deleteMember(' + m.id + ')" class="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="حذف">🗑️</button>' +
+        '</div>' +
+      '</td>' +
+    '</tr>';
+  }).join('');
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" class="px-6 py-12 text-center text-slate-400">لا يوجد أعضاء مطابقين للبحث</td></tr>';
+  }
+}
+
+function filterMembers() {
+  renderMembers(document.getElementById('member-search').value);
+}
+
+function renderSubscriptions() {
+  const tbody = document.getElementById('subscriptions-table-body');
+  const today = new Date();
+
+  tbody.innerHTML = members.map(m => {
+    const end = new Date(m.endDate);
+    const isActive = end >= today;
+    const status = isActive ?
+      '<span class="px-3 py-1 bg-emerald-100 text-emerald-700 rounded-full text-xs font-medium">نشط</span>' :
+      '<span class="px-3 py-1 bg-red-100 text-red-700 rounded-full text-xs font-medium">منتهي</span>';
+
+    return '<tr class="hover:bg-slate-50 transition-colors">' +
+      '<td class="px-6 py-4 font-medium text-slate-800">' + m.name + '</td>' +
+      '<td class="px-6 py-4"><span class="px-3 py-1 bg-slate-100 text-slate-700 rounded-full text-xs font-medium">' + m.plan + '</span></td>' +
+      '<td class="px-6 py-4 font-bold text-emerald-600">' + formatIQD(m.price) + '</td>' +
+      '<td class="px-6 py-4 text-sm text-slate-600">' + m.startDate + '</td>' +
+      '<td class="px-6 py-4 text-sm text-slate-600">' + m.endDate + '</td>' +
+      '<td class="px-6 py-4">' + status + '</td>' +
+    '</tr>';
+  }).join('');
+}
+
+function renderPayments() {
+  const filter = document.getElementById('payment-filter') ? document.getElementById('payment-filter').value : 'all';
+  const today = new Date();
+  let filtered = payments;
+
+  if (filter === 'month') {
+    filtered = payments.filter(p => {
+      const d = new Date(p.date);
+      return d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear();
+    });
+  } else if (filter === 'week') {
+    const weekAgo = new Date(today - 7 * 24 * 60 * 60 * 1000);
+    filtered = payments.filter(p => new Date(p.date) >= weekAgo);
+  }
+
+  const tbody = document.getElementById('payments-table-body');
+  tbody.innerHTML = filtered.slice().reverse().map((p, i) =>
+    '<tr class="hover:bg-slate-50 transition-colors">' +
+      '<td class="px-6 py-4 text-sm text-slate-500">#' + String(filtered.length - i).padStart(4, '0') + '</td>' +
+      '<td class="px-6 py-4 font-medium text-slate-800">' + p.memberName + '</td>' +
+      '<td class="px-6 py-4"><span class="px-3 py-1 bg-slate-100 text-slate-700 rounded-full text-xs font-medium">' + p.plan + '</span></td>' +
+      '<td class="px-6 py-4 font-bold text-emerald-600">' + formatIQD(p.amount) + '</td>' +
+      '<td class="px-6 py-4 text-sm text-slate-600">' + p.method + '</td>' +
+      '<td class="px-6 py-4 text-sm text-slate-600">' + p.date + '</td>' +
+    '</tr>'
+  ).join('');
+
+  const total = filtered.reduce((sum, p) => sum + p.amount, 0);
+  document.getElementById('total-payments').textContent = formatIQD(total);
+}
+
+function renderReports() {
+  const months = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو'];
+  const revenueData = [850000, 920000, 780000, 1050000, 980000, 1120000, 1250000];
+  const maxRev = Math.max(...revenueData);
+
+  document.getElementById('chart-revenue').innerHTML = revenueData.map((val, i) =>
+    '<div class="flex flex-col items-center gap-1 flex-1">' +
+      '<div class="text-xs font-bold text-slate-600">' + (val/1000).toFixed(0) + 'k</div>' +
+      '<div class="w-full bg-emerald-500 rounded-t-md transition-all duration-500 hover:bg-emerald-400" style="height: ' + ((val/maxRev)*180) + 'px"></div>' +
+      '<div class="text-xs text-slate-500">' + months[i] + '</div>' +
+    '</div>'
+  ).join('');
+
+  const growthData = [45, 52, 48, 61, 58, 67, 74];
+  const maxGrowth = Math.max(...growthData);
+
+  document.getElementById('chart-growth').innerHTML = growthData.map((val, i) =>
+    '<div class="flex flex-col items-center gap-1 flex-1">' +
+      '<div class="text-xs font-bold text-slate-600">' + val + '</div>' +
+      '<div class="w-full bg-blue-500 rounded-t-md transition-all duration-500 hover:bg-blue-400" style="height: ' + ((val/maxGrowth)*180) + 'px"></div>' +
+      '<div class="text-xs text-slate-500">' + months[i] + '</div>' +
+    '</div>'
+  ).join('');
+
+  document.getElementById('report-new').textContent = '12';
+  document.getElementById('report-renew').textContent = '8';
+  document.getElementById('report-expired').textContent = '3';
+  document.getElementById('report-cancel').textContent = '1';
+}
+
+function openModal(id) {
+  document.getElementById(id).classList.remove('hidden');
+  document.getElementById(id).classList.add('flex');
+  if (id === 'member-modal') {
+    document.getElementById('start-date').value = new Date().toISOString().split('T')[0];
+  }
+}
+
+function closeModal(id) {
+  document.getElementById(id).classList.add('hidden');
+  document.getElementById(id).classList.remove('flex');
+}
+
+function updatePrice() {
+  const plan = document.getElementById('plan-select').value;
+  const price = PLAN_CONFIG[plan] ? PLAN_CONFIG[plan].price : 0;
+  document.getElementById('plan-price').textContent = formatIQD(price);
+}
+
+function quickAddMember(plan, price) {
+  document.getElementById('plan-select').value = plan;
+  updatePrice();
+  openModal('member-modal');
+}
+
+function saveMember(e) {
+  e.preventDefault();
+  const form = e.target;
+  const plan = form.plan.value;
+  const config = PLAN_CONFIG[plan];
+  const startDate = new Date(form.startDate.value);
+  const endDate = new Date(startDate);
+
+  if (config.unit === 'month') {
+    endDate.setMonth(endDate.getMonth() + config.duration);
+  } else if (config.unit === 'day') {
+    endDate.setDate(endDate.getDate() + config.duration);
+  }
+
+  const member = {
+    id: Date.now(),
+    name: form.name.value,
+    phone: form.phone.value,
+    email: form.email.value,
+    plan: plan,
+    price: config.price,
+    startDate: form.startDate.value,
+    endDate: endDate.toISOString().split('T')[0],
+    status: 'active',
+    paymentMethod: form.payment.value
+  };
+
+  members.push(member);
+  localStorage.setItem('gym_members_iq', JSON.stringify(members));
+
+  const payment = {
+    id: Date.now(),
+    memberId: member.id,
+    memberName: member.name,
+    plan: member.plan,
+    amount: member.price,
+    method: member.paymentMethod,
+    date: member.startDate
+  };
+  payments.push(payment);
+  localStorage.setItem('gym_payments_iq', JSON.stringify(payments));
+
+  closeModal('member-modal');
+  form.reset();
+  showNotification('✅ تم إضافة العضو بنجاح!');
+  renderPage(document.querySelector('.nav-btn.bg-emerald-600').dataset.page);
+}
+
+function renewMember(id) {
+  const member = members.find(m => m.id === id);
+  if (!member) return;
+
+  const config = PLAN_CONFIG[member.plan];
+  const endDate = new Date(member.endDate);
+  if (endDate < new Date()) endDate.setTime(Date.now());
+
+  if (config.unit === 'month') {
+    endDate.setMonth(endDate.getMonth() + config.duration);
+  } else if (config.unit === 'day') {
+    endDate.setDate(endDate.getDate() + config.duration);
+  }
+
+  member.endDate = endDate.toISOString().split('T')[0];
+  member.status = 'active';
+
+  const payment = {
+    id: Date.now(),
+    memberId: member.id,
+    memberName: member.name,
+    plan: member.plan,
+    amount: member.price,
+    method: member.paymentMethod,
+    date: new Date().toISOString().split('T')[0]
+  };
+  payments.push(payment);
+
+  localStorage.setItem('gym_members_iq', JSON.stringify(members));
+  localStorage.setItem('gym_payments_iq', JSON.stringify(payments));
+
+  showNotification('🔄 تم تجديد الاشتراك بنجاح!');
+  renderPage(document.querySelector('.nav-btn.bg-emerald-600').dataset.page);
+}
+
+function editMember(id) {
+  showNotification('📝 ميزة التعديل قيد التطوير');
+}
+
+function deleteMember(id) {
+  deleteTargetId = id;
+  openModal('delete-modal');
+}
+
+function confirmDelete() {
+  members = members.filter(m => m.id !== deleteTargetId);
+  payments = payments.filter(p => p.memberId !== deleteTargetId);
+  localStorage.setItem('gym_members_iq', JSON.stringify(members));
+  localStorage.setItem('gym_payments_iq', JSON.stringify(payments));
+  closeModal('delete-modal');
+  showNotification('🗑️ تم حذف العضو بنجاح');
+  renderPage(document.querySelector('.nav-btn.bg-emerald-600').dataset.page);
+}
+
+function exportData() {
+  const data = { members: members, payments: payments, exportDate: new Date().toISOString() };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'gym-data-iq-' + new Date().toISOString().split('T')[0] + '.json';
+  a.click();
+  URL.revokeObjectURL(url);
+  showNotification('📥 تم تصدير البيانات بنجاح');
+}
+
+function showNotification(msg) {
+  const toast = document.getElementById('toast');
+  document.getElementById('toast-message').textContent = msg;
+  toast.classList.remove('-translate-y-20');
+  toast.classList.add('translate-y-0');
+  setTimeout(() => {
+    toast.classList.add('-translate-y-20');
+    toast.classList.remove('translate-y-0');
+  }, 3000);
+}
+
+document.getElementById('current-date').textContent = new Date().toLocaleDateString('ar-IQ', {
+  weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+});
+
+renderDashboard();
+</script>
+
+</body>
+</html>

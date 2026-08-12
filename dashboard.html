@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لوحة التحكم عن بعد - الجيم</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f1f5f9;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .card {
+            background-color: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+            text-align: center;
+            max-width: 400px;
+            width: 90%;
+        }
+        h1 { color: #1e293b; font-size: 24px; }
+        .status {
+            font-size: 20px;
+            font-weight: bold;
+            margin: 20px 0;
+            padding: 10px;
+            border-radius: 8px;
+        }
+        .status.unlocked {
+            background-color: #dcfce7;
+            color: #16a34a;
+        }
+        .status.locked {
+            background-color: #fee2e2;
+            color: #ef4444;
+        }
+        button {
+            border: none;
+            padding: 15px 30px;
+            font-size: 18px;
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+            width: 100%;
+            transition: background-color 0.2s;
+            color: white;
+        }
+        #lockBtn { background-color: #ef4444; margin-bottom: 10px; }
+        #lockBtn:hover { background-color: #dc2626; }
+        #unlockBtn { background-color: #10b981; }
+        #unlockBtn:hover { background-color: #059669; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>لوحة التحكم بنظام الجم 📱</h1>
+        <p>حالة النظام الحالية في الصالة:</p>
+        <div id="connectionStatus" style="font-size: 14px; font-weight: bold; margin-bottom: 10px;">جاري الاتصال بالسيرفر...</div>
+        <div id="statusDisplay" class="status unlocked">جاري جلب الحالة...</div>
+        
+        <button id="lockBtn" onclick="setLockState(true)">🔒 قفل النظام وإغلاق الباب</button>
+        <button id="unlockBtn" onclick="setLockState(false)">🔓 فتح النظام</button>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getDatabase, ref, onValue, set } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+
+        const firebaseConfig = {
+            databaseURL: "https://black-e91d4-default-rtdb.firebaseio.com"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+        const lockRef = ref(db, 'system_state/is_locked');
+        const connectedRef = ref(db, '.info/connected');
+
+        const statusDisplay = document.getElementById('statusDisplay');
+        const connectionStatus = document.getElementById('connectionStatus');
+
+        // Listen for connection state
+        onValue(connectedRef, (snap) => {
+            if (snap.val() === true) {
+                connectionStatus.textContent = "اللوحة متصلة بالسيرفر 🟢";
+                connectionStatus.style.color = "#16a34a";
+            } else {
+                connectionStatus.textContent = "جاري الاتصال... 🔴 (تأكد من الإنترنت)";
+                connectionStatus.style.color = "#ef4444";
+            }
+        });
+
+        // Listen for changes
+        onValue(lockRef, (snapshot) => {
+            const isLocked = snapshot.val();
+            if (isLocked) {
+                statusDisplay.textContent = "النظام مقفل 🔒";
+                statusDisplay.className = "status locked";
+            } else {
+                statusDisplay.textContent = "النظام يعمل (مفتوح) ✅";
+                statusDisplay.className = "status unlocked";
+            }
+        });
+
+        // Expose function to global scope for buttons
+        window.setLockState = function(state) {
+            set(lockRef, state).then(() => {
+                console.log('State updated successfully');
+            }).catch((error) => {
+                alert('حدث خطأ في الاتصال بالإنترنت');
+                console.error(error);
+            });
+        }
+    </script>
+</body>
+</html>

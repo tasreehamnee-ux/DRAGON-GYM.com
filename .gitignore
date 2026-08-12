@@ -1,0 +1,52 @@
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.pyd
+
+# Build and Dist
+build/
+dist/
+dist2/
+dist3/
+dist4/
+*.spec
+*.egg-info/
+.eggs/
+
+# IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Databases and Exports (Very Important to exclude)
+*.db
+*.sqlite3
+database.db
+gym.db
+gym_database.db
+gym_system.db
+members_export.xlsx
+
+# Face Models and Biometrics (Sensitive Data)
+face_model.yml
+
+# Secrets and Configs (Do NOT upload keys!)
+firebase_key.json
+firebase_url.txt
+client_id.txt
+
+# Logs
+*.log
+output.log

@@ -247,6 +247,27 @@ def members():
                 return jsonify({"error": msg}), 400
                 
         # GET method logic
+        from database import USE_FIREBASE
+        if USE_FIREBASE:
+            from firebase_db import fb_get_all_members
+            ml = fb_get_all_members()
+            from datetime import date, datetime
+            for m in ml:
+                rem = 0
+                ed_str = m.get('end_date')
+                if ed_str:
+                    try:
+                        ed = datetime.strptime(ed_str[:10], "%Y-%m-%d").date()
+                        rem = (ed - date.today()).days
+                        if rem < 0: rem = 0
+                    except: pass
+                m['remaining_days'] = rem
+                m['plan'] = m.get('plan_name', '')
+                m['phone'] = m.get('phone', '')
+                m['trainer_name'] = m.get('trainer_name', '')
+                m['status'] = m.get('status', 'منتهي')
+            return jsonify(ml)
+            
         members_query = session.query(Member).order_by(Member.id.desc()).all()
         members_list = []
         for m in members_query:
@@ -278,6 +299,30 @@ def members():
 
 @app.route('/api/members/<int:member_id>', methods=['GET', 'DELETE'])
 def get_member(member_id):
+    from database import USE_FIREBASE
+    if USE_FIREBASE:
+        from firebase_db import fb_get_member, fb_delete_member, fb_delete_payments_by_member
+        m = fb_get_member(member_id)
+        if not m:
+            return jsonify({"error": "المشترك غير موجود"}), 404
+        if request.method == 'DELETE':
+            fb_delete_payments_by_member(member_id)
+            fb_delete_member(member_id)
+            return jsonify({"message": "تم الحذف بنجاح"})
+        return jsonify({
+            "id": m.get('id'),
+            "name": m.get('name', ''),
+            "phone": m.get('phone', ''),
+            "card_id": m.get('card_id', ''),
+            "address": m.get('address', ''),
+            "trainer_name": m.get('trainer_name', ''),
+            "plan_name": m.get('plan_name', ''),
+            "start_date": str(m.get('start_date', '')),
+            "end_date": str(m.get('end_date', '')),
+            "status": m.get('status', ''),
+            "notes": m.get('notes', '')
+        })
+
     session = get_session()
     try:
         m = session.query(Member).get(member_id)
@@ -300,8 +345,8 @@ def get_member(member_id):
             "address": m.address,
             "trainer_name": m.trainer_name,
             "plan_name": m.plan_name,
-            "start_date": str(m.start_date),
-            "end_date": str(m.end_date),
+            "start_date": str(m.start_date) if m.start_date else '',
+            "end_date": str(m.end_date) if m.end_date else '',
             "status": m.status,
             "notes": m.notes
         })
@@ -400,6 +445,23 @@ def payments_api():
             return jsonify({"message": "تم إضافة الدفعة بنجاح"})
             
         else:
+            from database import USE_FIREBASE
+            if USE_FIREBASE:
+                from firebase_db import fb_get_all_payments, fb_get_all_members
+                payments = fb_get_all_payments()
+                members = {m['id']: m for m in fb_get_all_members() if 'id' in m}
+                result = []
+                for p in reversed(payments):
+                    m_name = members.get(p.get('member_id'), {}).get('name') or p.get('plan_name') or "غير معروف"
+                    result.append({
+                        "receipt": p.get('receipt_number') or f"REC-{p.get('id')}",
+                        "member_name": m_name,
+                        "amount": p.get('amount'),
+                        "method": p.get('payment_method'),
+                        "date": str(p.get('payment_date'))
+                    })
+                return jsonify(result[:100])
+                
             payments = session.query(Payment, Member.name).outerjoin(Member, Payment.member_id == Member.id).order_by(Payment.id.desc()).limit(100).all()
             result = []
             for p, m_name in payments:
@@ -461,6 +523,11 @@ def staff_api():
             return jsonify({"message": "تم الإضافة"})
             
         elif request.method == 'GET':
+            from database import USE_FIREBASE
+            if USE_FIREBASE:
+                from business_logic import get_all_staff
+                return jsonify(get_all_staff())
+                
             staff_members = session.query(Staff).all()
             return jsonify([{
                 "id": s.id, "name": s.name, "role": s.role,
@@ -472,13 +539,19 @@ def staff_api():
 
 @app.route('/api/staff/<int:staff_id>', methods=['DELETE'])
 def delete_staff(staff_id):
+    from database import USE_FIREBASE
+    if USE_FIREBASE:
+        from business_logic import delete_staff as bl_delete_staff
+        bl_delete_staff(staff_id)
+        return jsonify({"message": "تم الحذف بنجاح"})
+        
     session = get_session()
     try:
         s = session.query(Staff).get(staff_id)
         if s:
             session.delete(s)
             session.commit()
-            return jsonify({"message": "تم الحذف"})
+        return jsonify({"message": "تم الحذف بنجاح"})
         return jsonify({"error": "غير موجود"}), 404
     finally:
         session.close()

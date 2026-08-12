@@ -147,11 +147,7 @@ def fb_find_member_by_card(card_id):
 def fb_delete_member(member_id):
     """Delete a member and their associated payments."""
     _ref(f'/gym_data/members/{member_id}').delete()
-    # Delete associated payments
-    payments = _ref('/gym_data/payments').get() or {}
-    for pid, p in payments.items():
-        if p.get('member_id') == member_id:
-            _ref(f'/gym_data/payments/{pid}').delete()
+    fb_delete_payments_by_member(member_id)
 
 
 def fb_count_members(status=None):
@@ -194,18 +190,16 @@ def fb_delete_payment(payment_id):
 
 def fb_delete_payments_by_member(member_id):
     """Delete all payments for a member."""
-    payments = _ref('/gym_data/payments').get() or {}
-    for pid, p in payments.items():
+    payments_data = _ref('/gym_data/payments').get()
+    payments_list = _get_list_from_data(payments_data)
+    for p in payments_list:
         if p.get('member_id') == member_id:
-            _ref(f'/gym_data/payments/{pid}').delete()
+            _ref(f"/gym_data/payments/{p['id']}").delete()
 
 
 def fb_get_last_payment_id():
     """Get the highest payment ID."""
-    payments = _ref('/gym_data/payments').get() or {}
-    if not payments:
-        return 0
-    return max(int(k) for k in payments.keys())
+    return _next_id('/gym_data/payments') - 1
 
 
 # ============================================================

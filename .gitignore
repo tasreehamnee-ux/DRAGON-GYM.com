@@ -54,3 +54,15 @@ output.log
 black-e91d4-firebase-adminsdk-fbsvc-7c509a0afb.json
 not.txt
 DRAGON-GYM.com/
+
+dist/
+dist2/
+dist3/
+dist4/
+build/
+Client_1/
+Client_2/
+__pycache__/
+*.spec
+*.db
+

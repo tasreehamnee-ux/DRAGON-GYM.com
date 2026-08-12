@@ -3,7 +3,14 @@ import os
 import numpy as np
 from database import get_session, Member
 
-MODEL_FILE = 'face_model.yml'
+import os
+import tempfile
+
+base_dir = os.path.dirname(os.path.abspath(__file__))
+if os.access(base_dir, os.W_OK):
+    MODEL_FILE = os.path.join(base_dir, 'face_model.yml')
+else:
+    MODEL_FILE = os.path.join(tempfile.gettempdir(), 'face_model.yml')
 
 # Initialize LBPH Face Recognizer
 if hasattr(cv2.face, 'LBPHFaceRecognizer_create'):

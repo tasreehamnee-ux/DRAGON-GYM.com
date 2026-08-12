@@ -568,38 +568,76 @@ function deletePlan(id) {
 }
 
 let isCameraOn = false;
+let cameraStream = null;
+let captureInterval = null;
 
-function toggleCamera() {
+async function toggleCamera() {
     isCameraOn = !isCameraOn;
     const btn = document.getElementById('btn-toggle-camera');
     const feed = document.getElementById('video-feed');
     const statusText = document.getElementById('face-status-text');
     
-    fetch('/api/toggle_camera', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ active: isCameraOn })
-    })
-    .then(res => res.json())
-    .then(data => {
-        if(data.status === 'on') {
-            btn.innerText = "إيقاف المراقبة";
-            btn.style.backgroundColor = "#ef4444";
-            feed.src = "/video_feed?" + new Date().getTime(); // force reload stream
+    if (isCameraOn) {
+        try {
+            cameraStream = await navigator.mediaDevices.getUserMedia({ video: true });
+            feed.srcObject = cameraStream;
             feed.style.display = "block";
-            statusText.innerText = "المراقبة تعمل...";
+            btn.innerText = "????? ????????";
+            btn.style.backgroundColor = "#ef4444";
+            statusText.innerText = "???????? ????...";
             statusText.style.color = "#10b981";
-        } else {
-            btn.innerText = "بدء المراقبة";
-            btn.style.backgroundColor = "#10b981";
-            feed.src = "";
-            feed.style.display = "none";
-            statusText.innerText = "نظام المراقبة متوقف";
-            statusText.style.color = "#475569";
+            
+            startFrameCapture();
+        } catch (err) {
+            console.error("Error accessing camera:", err);
+            alert("??? ??? ????? ?????? ????????.");
+            isCameraOn = false;
         }
-    })
-    .catch(err => {
-        alert("خطأ في تشغيل الكاميرا");
-        isCameraOn = !isCameraOn; // revert
-    });
+    } else {
+        if (cameraStream) {
+            cameraStream.getTracks().forEach(track => track.stop());
+            cameraStream = null;
+        }
+        if (captureInterval) {
+            clearInterval(captureInterval);
+            captureInterval = null;
+        }
+        feed.srcObject = null;
+        feed.style.display = "none";
+        btn.innerText = "??? ????????";
+        btn.style.backgroundColor = "#10b981";
+        statusText.innerText = "???? ???????? ?????";
+        statusText.style.color = "#64748b";
+    }
 }
+
+function startFrameCapture() {
+    const video = document.getElementById('video-feed');
+    const canvas = document.getElementById('camera-canvas');
+    const context = canvas.getContext('2d');
+    
+    captureInterval = setInterval(() => {
+        if (!isCameraOn || video.videoWidth === 0) return;
+        
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        
+        const frameData = canvas.toDataURL('image/jpeg', 0.5);
+        
+        fetch('/api/process_frame', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ image: frameData })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.recognized) {
+                document.getElementById('face-status-text').innerText = "?? ??????: " + data.member_name;
+            }
+        })
+        .catch(err => console.error("Error sending frame:", err));
+        
+    }, 1000);
+}
+

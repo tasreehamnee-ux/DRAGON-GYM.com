@@ -296,7 +296,8 @@
 
                     <div style="flex: 3; display: flex; flex-direction: column; align-items: center; justify-content: center;">
                         <div style="width: 100%; max-width: 800px; height: 450px; background-color: #000; border-radius: 8px; overflow: hidden; display: flex; justify-content: center; align-items: center; border: 4px solid #cbd5e1;">
-                            <img id="video-feed" style="display: none; width: 100%; height: 100%; object-fit: contain;" />
+                            <video id="video-feed" autoplay playsinline style="display: none; width: 100%; height: 100%; object-fit: contain; transform: scaleX(-1);"></video>
+                            <canvas id="camera-canvas" style="display: none;"></canvas>
                         </div>
                         
                         <button id="btn-toggle-camera" class="btn-primary" style="background-color: #10b981; margin-top: 20px; width: 100%; max-width: 800px; font-size: 18px; padding: 15px;" onclick="toggleCamera()">بدء المراقبة</button>

@@ -582,15 +582,15 @@ async function toggleCamera() {
             cameraStream = await navigator.mediaDevices.getUserMedia({ video: true });
             feed.srcObject = cameraStream;
             feed.style.display = "block";
-            btn.innerText = "????? ????????";
+            btn.innerText = "إيقاف المراقبة";
             btn.style.backgroundColor = "#ef4444";
-            statusText.innerText = "???????? ????...";
+            statusText.innerText = "المراقبة تعمل...";
             statusText.style.color = "#10b981";
             
             startFrameCapture();
         } catch (err) {
             console.error("Error accessing camera:", err);
-            alert("??? ??? ????? ?????? ????????.");
+            alert("حدث خطأ أثناء الوصول للكاميرا.");
             isCameraOn = false;
         }
     } else {
@@ -604,9 +604,9 @@ async function toggleCamera() {
         }
         feed.srcObject = null;
         feed.style.display = "none";
-        btn.innerText = "??? ????????";
+        btn.innerText = "بدء المراقبة";
         btn.style.backgroundColor = "#10b981";
-        statusText.innerText = "???? ???????? ?????";
+        statusText.innerText = "نظام المراقبة متوقف";
         statusText.style.color = "#64748b";
     }
 }
@@ -633,7 +633,7 @@ function startFrameCapture() {
         .then(res => res.json())
         .then(data => {
             if (data.recognized) {
-                document.getElementById('face-status-text').innerText = "?? ??????: " + data.member_name;
+                document.getElementById('face-status-text').innerText = "تم التعرف: " + data.member_name;
             }
         })
         .catch(err => console.error("Error sending frame:", err));

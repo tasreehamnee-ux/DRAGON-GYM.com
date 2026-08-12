@@ -94,11 +94,15 @@ class Staff(Base):
     salary_type = Column(String, default='ثابت') # ثابت، نسبة
 
 
-# Database setup
-if os.environ.get('VERCEL'):
-    db_path = '/tmp/gym.db'
+import os
+import tempfile
+
+base_dir = os.path.dirname(os.path.abspath(__file__))
+if os.access(base_dir, os.W_OK):
+    db_path = os.path.join(base_dir, 'gym.db')
 else:
-    db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'gym.db')
+    db_path = os.path.join(tempfile.gettempdir(), 'gym.db')
+
 engine = create_engine(f'sqlite:///{db_path}', echo=False)
 
 def init_db():
@@ -131,3 +135,6 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 def get_session():
     return SessionLocal()
+
+# Initialize DB when module is imported so Vercel creates the tables
+init_db()

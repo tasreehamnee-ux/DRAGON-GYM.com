@@ -95,7 +95,10 @@ class Staff(Base):
 
 
 # Database setup
-db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'gym.db')
+if os.environ.get('VERCEL'):
+    db_path = '/tmp/gym.db'
+else:
+    db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'gym.db')
 engine = create_engine(f'sqlite:///{db_path}', echo=False)
 
 def init_db():

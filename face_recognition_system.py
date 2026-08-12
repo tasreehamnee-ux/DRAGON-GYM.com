@@ -1,7 +1,11 @@
 import cv2
 import os
 import numpy as np
-from database import get_session, Member
+import base64
+from database import get_session, Member, USE_FIREBASE
+
+if USE_FIREBASE:
+    from firebase_db import _ref, fb_get_member, fb_update_member
 
 import os
 import tempfile
@@ -29,8 +33,25 @@ cascade_path = get_resource_path('haarcascade_frontalface_default.xml')
 face_cascade = cv2.CascadeClassifier(cascade_path)
 if face_cascade.empty():
     print("Warning: Could not load cascade classifier.")
+
 def load_model():
-    if recognizer and os.path.exists(MODEL_FILE):
+    if not recognizer:
+        return False
+    
+    if USE_FIREBASE:
+        # Try to download base64 model from Firebase Realtime DB
+        try:
+            b64_data = _ref('/gym_data/face_model').get()
+            if b64_data:
+                model_bytes = base64.b64decode(b64_data)
+                with open(MODEL_FILE, 'wb') as f:
+                    f.write(model_bytes)
+                recognizer.read(MODEL_FILE)
+                return True
+        except Exception as e:
+            print(f"Error loading model from Firebase: {e}")
+            
+    if os.path.exists(MODEL_FILE):
         recognizer.read(MODEL_FILE)
         return True
     return False
@@ -38,6 +59,13 @@ def load_model():
 def save_model():
     if recognizer:
         recognizer.write(MODEL_FILE)
+        if USE_FIREBASE:
+            try:
+                with open(MODEL_FILE, 'rb') as f:
+                    b64_data = base64.b64encode(f.read()).decode('utf-8')
+                _ref('/gym_data/face_model').set(b64_data)
+            except Exception as e:
+                print(f"Error saving model to Firebase: {e}")
 
 def train_user_face(member_id, frames):
     """
@@ -59,6 +87,16 @@ def train_user_face(member_id, frames):
     save_model()
     
     # Update DB
+    if USE_FIREBASE:
+        try:
+            member = fb_get_member(member_id)
+            if member:
+                fb_update_member(member_id, {'has_face_registered': True})
+                return True, "تم حفظ البصمة الوجهية بنجاح."
+            return False, "لم يتم العثور على المشترك."
+        except Exception as e:
+            return False, str(e)
+
     session = get_session()
     try:
         member = session.query(Member).filter(Member.id == member_id).first()

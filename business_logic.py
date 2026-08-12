@@ -1,10 +1,40 @@
 from datetime import date, timedelta, datetime
 from dateutil.relativedelta import relativedelta
 from sqlalchemy import func, extract
-from database import get_session, Member, Payment, Settings, SubscriptionPlan, AttendanceLog, Expense, Staff
+from database import get_session, Member, Payment, Settings, SubscriptionPlan, AttendanceLog, Expense, Staff, USE_FIREBASE
 from sync_manager import sync_manager
 
+# Import Firebase DB layer (only used when USE_FIREBASE is True)
+if USE_FIREBASE:
+    from firebase_db import (
+        fb_get_all_members, fb_get_member, fb_add_member, fb_update_member,
+        fb_delete_member, fb_find_member_by_name, fb_find_member_by_card, fb_count_members,
+        fb_add_payment, fb_get_all_payments, fb_get_payments_by_member,
+        fb_delete_payments_by_member, fb_get_last_payment_id, fb_delete_payment,
+        fb_get_all_plans, fb_add_plan, fb_find_plan_by_name, fb_update_plan,
+        fb_delete_plan, fb_init_default_plans,
+        fb_get_settings, fb_update_settings,
+        fb_log_attendance, fb_get_today_attendance,
+        fb_add_expense, fb_get_expenses, fb_delete_expense,
+        fb_add_staff, fb_get_all_staff, fb_find_staff_by_name,
+        fb_delete_staff, fb_update_staff,
+        _parse_date
+    )
+
 def get_settings():
+    if USE_FIREBASE:
+        data = fb_get_settings()
+        # Return a simple object with attribute access
+        class SettingsObj:
+            pass
+        s = SettingsObj()
+        s.gym_name = data.get('gym_name', 'نظام القاعة الرياضية')
+        s.gym_phone = data.get('gym_phone', '')
+        s.gym_address = data.get('gym_address', '')
+        s.door_com_port = data.get('door_com_port', '')
+        s.license_expiry_date = data.get('license_expiry_date', '')
+        s.is_locally_locked = data.get('is_locally_locked', False)
+        return s
     session = get_session()
     try:
         settings = session.query(Settings).first()
@@ -19,6 +49,18 @@ def get_settings():
         session.close()
 
 def update_settings(gym_name, gym_phone, gym_address="", door_com_port="", license_expiry_date="", is_locally_locked=False):
+    if USE_FIREBASE:
+        try:
+            fb_update_settings({
+                'gym_name': gym_name, 'gym_phone': gym_phone,
+                'gym_address': gym_address, 'door_com_port': door_com_port,
+                'license_expiry_date': license_expiry_date,
+                'is_locally_locked': is_locally_locked
+            })
+            return True
+        except Exception as e:
+            print(f"Error updating settings: {e}")
+            return False
     session = get_session()
     try:
         settings = session.query(Settings).first()
@@ -42,6 +84,15 @@ def update_settings(gym_name, gym_phone, gym_address="", door_com_port="", licen
         session.close()
 
 def update_license_cache(is_locked, expiry_date):
+    if USE_FIREBASE:
+        try:
+            updates = {'is_locally_locked': is_locked}
+            if expiry_date is not None:
+                updates['license_expiry_date'] = expiry_date
+            fb_update_settings(updates)
+        except Exception as e:
+            print(f"Error updating license cache: {e}")
+        return
     session = get_session()
     try:
         settings = session.query(Settings).first()
@@ -57,6 +108,9 @@ def update_license_cache(is_locked, expiry_date):
         session.close()
 
 def get_all_plans():
+    if USE_FIREBASE:
+        plans = fb_get_all_plans()
+        return [{"id": p.get('id'), "name": p.get('name'), "price": p.get('price'), "duration_days": p.get('duration_days')} for p in plans]
     session = get_session()
     try:
         plans = session.query(SubscriptionPlan).all()
@@ -65,6 +119,8 @@ def get_all_plans():
         session.close()
 
 def add_plan(name, price, duration_days):
+    if USE_FIREBASE:
+        return fb_add_plan(name, price, duration_days)
     session = get_session()
     try:
         if session.query(SubscriptionPlan).filter_by(name=name).first():
@@ -80,6 +136,13 @@ def add_plan(name, price, duration_days):
         session.close()
 
 def update_plan_price_or_create(name, price, duration_days):
+    if USE_FIREBASE:
+        existing = fb_find_plan_by_name(name)
+        if existing:
+            fb_update_plan(existing['id'], name, price, duration_days)
+        else:
+            fb_add_plan(name, price, duration_days)
+        return True, "تم الحفظ"
     session = get_session()
     try:
         plan = session.query(SubscriptionPlan).filter_by(name=name).first()
@@ -98,6 +161,8 @@ def update_plan_price_or_create(name, price, duration_days):
         session.close()
 
 def delete_plan(plan_id):
+    if USE_FIREBASE:
+        return fb_delete_plan(plan_id)
     session = get_session()
     try:
         plan = session.query(SubscriptionPlan).get(plan_id)
@@ -145,15 +210,67 @@ def get_plan_price(plan_name: str) -> float:
 import time
 
 def add_new_member(name, phone, address, landmark, plan_name, start_date, payment_method, notes="", receipt_number="", is_pending=False, card_id=None, trainer_name=""):
+    price = get_plan_price(plan_name)
+    end_date = calculate_end_date(start_date, plan_name)
+    member_status = 'pending' if is_pending else 'active'
+    clean_name = name.strip() if name else ""
+    clean_phone = phone.strip() if phone else ""
+    clean_trainer = trainer_name.strip() if trainer_name else ""
+
+    if USE_FIREBASE:
+        try:
+            existing = fb_find_member_by_name(clean_name) if clean_name else None
+            is_renewal = existing is not None
+
+            if existing:
+                member_id = existing['id']
+                fb_update_member(member_id, {
+                    'name': clean_name or existing.get('name'),
+                    'phone': clean_phone or existing.get('phone'),
+                    'address': address or existing.get('address'),
+                    'landmark': landmark or existing.get('landmark'),
+                    'plan_name': plan_name, 'price': price,
+                    'notes': notes or existing.get('notes'),
+                    'start_date': start_date, 'end_date': end_date,
+                    'status': member_status, 'payment_method': payment_method,
+                    'card_id': card_id or existing.get('card_id'),
+                    'trainer_name': clean_trainer,
+                    'is_frozen': False, 'frozen_date': None
+                })
+            else:
+                member_id = fb_add_member({
+                    'name': clean_name, 'phone': clean_phone,
+                    'address': address, 'landmark': landmark,
+                    'plan_name': plan_name, 'price': price, 'notes': notes,
+                    'start_date': start_date, 'end_date': end_date,
+                    'status': member_status, 'payment_method': payment_method,
+                    'card_id': card_id, 'trainer_name': clean_trainer,
+                    'is_frozen': False, 'has_face_registered': False
+                })
+
+            # Save trainer as staff
+            if clean_trainer and not fb_find_staff_by_name(clean_trainer):
+                fb_add_staff(clean_trainer, '', 'مدرب', 0.0, 'ثابت')
+
+            # Generate receipt number
+            if not receipt_number or not str(receipt_number).strip():
+                last_id = fb_get_last_payment_id()
+                receipt_number = f"REC-{last_id + 1}"
+
+            # Add payment
+            fb_add_payment({
+                'member_id': member_id, 'amount': price,
+                'payment_method': payment_method, 'payment_date': start_date,
+                'plan_name': plan_name, 'receipt_number': str(receipt_number).strip()
+            })
+
+            msg = "تم تجديد اشتراك المشترك بنجاح" if is_renewal else "تم إضافة المشترك بنجاح"
+            return True, msg, member_id
+        except Exception as e:
+            return False, str(e), None
+
     session = get_session()
     try:
-        price = get_plan_price(plan_name)
-        end_date = calculate_end_date(start_date, plan_name)
-        member_status = 'pending' if is_pending else 'active'
-        clean_name = name.strip() if name else ""
-        clean_phone = phone.strip() if phone else ""
-        clean_trainer = trainer_name.strip() if trainer_name else ""
-        
         # Check if member already exists by exact name
         existing_member = None
         if clean_name:
@@ -250,6 +367,8 @@ def add_new_member(name, phone, address, landmark, plan_name, start_date, paymen
         session.close()
 
 def get_member_by_card_id(card_id: str):
+    if USE_FIREBASE:
+        return fb_find_member_by_card(card_id)
     session = get_session()
     try:
         return session.query(Member).filter(Member.card_id == card_id).first()
@@ -257,6 +376,20 @@ def get_member_by_card_id(card_id: str):
         session.close()
 
 def activate_pending_member(member_id):
+    if USE_FIREBASE:
+        try:
+            member = fb_get_member(member_id)
+            if not member or member.get('status') != 'pending':
+                return False, "المشترك غير موجود أو ليس قيد الانتظار"
+            today = date.today()
+            fb_update_member(member_id, {
+                'start_date': today,
+                'end_date': calculate_end_date(today, member.get('plan_name', '')),
+                'status': 'active'
+            })
+            return True, "تم تفعيل المشترك بنجاح وبدء اشتراكه من اليوم"
+        except Exception as e:
+            return False, str(e)
     session = get_session()
     try:
         member = session.query(Member).get(member_id)
@@ -277,6 +410,29 @@ def activate_pending_member(member_id):
 
 def freeze_membership(member_id: int, manual_freeze_date: date):
     """Freezes membership starting from a specific manual date."""
+    if USE_FIREBASE:
+        try:
+            member = fb_get_member(member_id)
+            if not member:
+                return False, "العضو غير موجود"
+            if member.get('is_frozen'):
+                return False, "الاشتراك مجمد مسبقاً"
+            m_end = _parse_date(member.get('end_date'))
+            m_start = _parse_date(member.get('start_date'))
+            if m_end and m_end < manual_freeze_date:
+                return False, "تاريخ التجميد بعد تاريخ انتهاء الاشتراك!"
+            if m_start and manual_freeze_date < m_start:
+                return False, "لا يمكن تجميد الاشتراك قبل تاريخ البدء"
+            remaining_days = (m_end - manual_freeze_date).days if m_end else 0
+            if remaining_days <= 0:
+                return False, "لا توجد أيام متبقية للتجميد"
+            fb_update_member(member_id, {
+                'is_frozen': True, 'frozen_date': manual_freeze_date,
+                'remaining_days_when_frozen': remaining_days, 'status': 'frozen'
+            })
+            return True, f"تم تجميد الاشتراك. الأيام المتبقية المحفوظة: {remaining_days} يوم"
+        except Exception as e:
+            return False, str(e)
     session = get_session()
     try:
         member = session.query(Member).filter(Member.id == member_id).first()
@@ -321,6 +477,26 @@ def freeze_membership(member_id: int, manual_freeze_date: date):
 
 def unfreeze_membership(member_id: int, manual_return_date: date):
     """Unfreezes membership assuming they returned on a specific manual date."""
+    if USE_FIREBASE:
+        try:
+            member = fb_get_member(member_id)
+            if not member:
+                return False, "العضو غير موجود"
+            if not member.get('is_frozen'):
+                return False, "الاشتراك غير مجمد"
+            m_frozen = _parse_date(member.get('frozen_date'))
+            if m_frozen and manual_return_date < m_frozen:
+                return False, "تاريخ العودة يجب أن يكون بعد تاريخ التجميد!"
+            remaining = member.get('remaining_days_when_frozen', 0)
+            new_end_date = manual_return_date + timedelta(days=remaining)
+            fb_update_member(member_id, {
+                'end_date': new_end_date, 'is_frozen': False,
+                'frozen_date': None, 'status': 'active',
+                'last_return_date': manual_return_date
+            })
+            return True, f"تم إلغاء التجميد. تاريخ الانتهاء الجديد هو: {new_end_date.strftime('%Y-%m-%d')}"
+        except Exception as e:
+            return False, str(e)
     session = get_session()
     try:
         member = session.query(Member).filter(Member.id == member_id).first()
@@ -362,6 +538,14 @@ def unfreeze_membership(member_id: int, manual_return_date: date):
         session.close()
 
 def update_member_statuses():
+    if USE_FIREBASE:
+        today = date.today()
+        for m in fb_get_all_members():
+            if m.get('status') == 'active':
+                m_end = _parse_date(m.get('end_date'))
+                if m_end and m_end < today:
+                    fb_update_member(m['id'], {'status': 'expired'})
+        return
     session = get_session()
     try:
         today = date.today()
@@ -375,6 +559,44 @@ def update_member_statuses():
         session.close()
 
 def get_dashboard_stats():
+    if USE_FIREBASE:
+        today = date.today()
+        members = fb_get_all_members()
+        total_members = len(members)
+        active_members = len([m for m in members if m.get('status') == 'active'])
+        frozen_members = len([m for m in members if m.get('status') == 'frozen'])
+        expired_members = len([m for m in members if m.get('status') == 'expired'])
+        expiring_threshold = today + timedelta(days=7)
+        expiring_members = 0
+        for m in members:
+            if m.get('status') == 'active':
+                m_end = _parse_date(m.get('end_date'))
+                if m_end and today <= m_end <= expiring_threshold:
+                    expiring_members += 1
+        # Revenue
+        current_month = today.month
+        current_year = today.year
+        month_prefix = f'{current_year}-{current_month:02d}'
+        payments = fb_get_all_payments()
+        total_revenue = sum(p.get('amount', 0) for p in payments if str(p.get('payment_date', '')).startswith(month_prefix))
+        # Expenses
+        expenses = fb_get_expenses(current_month, current_year)
+        total_expenses = sum(e.get('amount', 0) for e in expenses)
+        # Staff salaries
+        staff_list = fb_get_all_staff()
+        for s in staff_list:
+            sal = s.get('salary', 0) or 0
+            if not sal: continue
+            if s.get('salary_type') and ('نسبة' in str(s.get('salary_type')) or '%' in str(s.get('salary_type'))):
+                total_expenses += total_revenue * (sal / 100.0)
+            else:
+                total_expenses += sal
+        return {
+            'total_members': total_members, 'active_members': active_members,
+            'frozen_members': frozen_members, 'expired_members': expired_members,
+            'expiring_members': expiring_members, 'revenue_this_month': total_revenue,
+            'expenses_this_month': total_expenses, 'net_profit': total_revenue - total_expenses
+        }
     session = get_session()
     try:
         today = date.today()
@@ -412,7 +634,7 @@ def get_dashboard_stats():
         
         total_expenses = sum(e[0] for e in expenses_this_month if e[0] is not None)
         
-        # Include Staff salaries (رواتب الكادر) as monthly expenses
+        # Include Staff salaries
         staff_members = session.query(Staff).all()
         total_staff_salaries = 0.0
         for s in staff_members:
@@ -614,6 +836,9 @@ def backfill_missing_payments():
         session.close()
 
 def log_attendance(member_id):
+    if USE_FIREBASE:
+        fb_log_attendance(member_id)
+        return
     session = get_session()
     try:
         log = AttendanceLog(member_id=member_id)
@@ -625,6 +850,8 @@ def log_attendance(member_id):
         session.close()
 
 def get_today_attendance():
+    if USE_FIREBASE:
+        return fb_get_today_attendance()
     session = get_session()
     try:
         today = date.today()
@@ -636,6 +863,8 @@ def get_today_attendance():
         session.close()
 
 def add_expense(title, amount, category, notes=""):
+    if USE_FIREBASE:
+        return fb_add_expense(title, amount, category, notes)
     session = get_session()
     try:
         exp = Expense(title=title, amount=float(amount), category=category, notes=notes)
@@ -649,6 +878,8 @@ def add_expense(title, amount, category, notes=""):
         session.close()
 
 def get_expenses(month=None, year=None):
+    if USE_FIREBASE:
+        return fb_get_expenses(month, year)
     session = get_session()
     try:
         query = session.query(Expense)
@@ -659,6 +890,8 @@ def get_expenses(month=None, year=None):
         session.close()
 
 def delete_expense(expense_id):
+    if USE_FIREBASE:
+        return fb_delete_expense(expense_id)
     session = get_session()
     try:
         exp = session.query(Expense).get(expense_id)
@@ -671,6 +904,8 @@ def delete_expense(expense_id):
         session.close()
 
 def add_staff(name, phone, role, salary, salary_type):
+    if USE_FIREBASE:
+        return fb_add_staff(name, phone, role, salary, salary_type)
     session = get_session()
     try:
         if isinstance(salary, str):
@@ -691,6 +926,8 @@ def add_staff(name, phone, role, salary, salary_type):
         session.close()
 
 def get_all_staff():
+    if USE_FIREBASE:
+        return fb_get_all_staff()
     session = get_session()
     try:
         return session.query(Staff).all()
@@ -698,6 +935,8 @@ def get_all_staff():
         session.close()
 
 def delete_staff(staff_id):
+    if USE_FIREBASE:
+        return fb_delete_staff(staff_id)
     session = get_session()
     try:
         staff = session.query(Staff).get(staff_id)
@@ -710,6 +949,8 @@ def delete_staff(staff_id):
         session.close()
 
 def update_staff(staff_id, name, phone, role, salary, salary_type):
+    if USE_FIREBASE:
+        return fb_update_staff(staff_id, name, phone, role, salary, salary_type)
     session = get_session()
     try:
         staff = session.query(Staff).get(staff_id)

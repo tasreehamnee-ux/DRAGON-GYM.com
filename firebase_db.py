@@ -52,11 +52,22 @@ def _ref(path):
 
 
 def _next_id(collection_path):
-    """Generate the next integer ID for a collection."""
+    """Generate next sequential ID for a collection."""
     data = _ref(collection_path).get() or {}
-    if not data:
+    if isinstance(data, list):
+        keys = [i for i, d in enumerate(data) if d is not None]
+    else:
+        keys = [int(k) for k in data.keys() if str(k).isdigit()]
+    if not keys:
         return 1
-    return max(int(k) for k in data.keys()) + 1
+    return max(keys) + 1
+
+def _get_list_from_data(data):
+    if not data:
+        return []
+    if isinstance(data, list):
+        return [d for d in data if d is not None]
+    return list(data.values())
 
 
 def _serialize_date(val):
@@ -110,8 +121,8 @@ def fb_get_member(member_id):
 
 def fb_get_all_members():
     """Get all members as a list of dicts."""
-    data = _ref('/gym_data/members').get() or {}
-    return list(data.values())
+    data = _ref('/gym_data/members').get()
+    return _get_list_from_data(data)
 
 
 def fb_find_member_by_name(name):
@@ -167,8 +178,8 @@ def fb_add_payment(data):
 
 def fb_get_all_payments():
     """Get all payments."""
-    data = _ref('/gym_data/payments').get() or {}
-    return list(data.values())
+    data = _ref('/gym_data/payments').get()
+    return _get_list_from_data(data)
 
 
 def fb_get_payments_by_member(member_id):
@@ -203,8 +214,8 @@ def fb_get_last_payment_id():
 
 def fb_get_all_plans():
     """Get all subscription plans."""
-    data = _ref('/gym_data/plans').get() or {}
-    return list(data.values())
+    data = _ref('/gym_data/plans').get()
+    return _get_list_from_data(data)
 
 
 def fb_add_plan(name, price, duration_days):
@@ -305,11 +316,12 @@ def fb_log_attendance(member_id):
 def fb_get_today_attendance():
     """Get today's attendance records with member names."""
     today_str = date.today().isoformat()
-    all_att = _ref('/gym_data/attendance').get() or {}
+    all_att = _ref('/gym_data/attendance').get()
+    att_list = _get_list_from_data(all_att)
     members = {m['id']: m for m in fb_get_all_members() if 'id' in m}
 
     today_records = []
-    for att in all_att.values():
+    for att in att_list:
         entry_time = att.get('entry_time', '')
         if entry_time.startswith(today_str):
             member = members.get(att.get('member_id'))
@@ -344,9 +356,9 @@ def fb_add_expense(title, amount, category, notes=''):
 
 
 def fb_get_expenses(month=None, year=None):
-    """Get expenses, optionally filtered by month/year."""
-    data = _ref('/gym_data/expenses').get() or {}
-    expenses = list(data.values())
+    """Get expenses with optional filtering."""
+    data = _ref('/gym_data/expenses').get()
+    expenses = _get_list_from_data(data)
     if month and year:
         prefix = f'{year}-{int(month):02d}'
         expenses = [e for e in expenses if e.get('expense_date', '').startswith(prefix)]
@@ -389,8 +401,8 @@ def fb_add_staff(name, phone, role, salary, salary_type):
 
 def fb_get_all_staff():
     """Get all staff members."""
-    data = _ref('/gym_data/staff').get() or {}
-    return list(data.values())
+    data = _ref('/gym_data/staff').get()
+    return _get_list_from_data(data)
 
 
 def fb_find_staff_by_name(name):

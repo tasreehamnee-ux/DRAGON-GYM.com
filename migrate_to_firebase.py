@@ -2,7 +2,7 @@ import os
 import sys
 import firebase_admin
 from firebase_admin import credentials
-from database import get_session, Member, Payment, Staff, Expense, AttendanceRecord
+from database import get_session, Member, Payment, Staff, Expense, AttendanceLog
 from firebase_db import (
     _ref, fb_add_member, fb_add_payment, fb_add_staff, 
     fb_add_expense, fb_log_attendance

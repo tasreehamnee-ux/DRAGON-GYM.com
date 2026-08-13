@@ -4,7 +4,7 @@ from sqlalchemy import create_engine, Column, Integer, String, Float, Boolean, D
 from sqlalchemy.orm import declarative_base, sessionmaker, relationship
 
 # Detect if running on Vercel (serverless) - use Firebase instead of SQLite
-USE_FIREBASE = os.environ.get('VERCEL', '') == '1'
+USE_FIREBASE = True
 
 Base = declarative_base()
 

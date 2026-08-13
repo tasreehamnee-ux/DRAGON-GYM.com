@@ -56,8 +56,11 @@ def _next_id(collection_path):
     data = _ref(collection_path).get() or {}
     if isinstance(data, list):
         keys = [i for i, d in enumerate(data) if d is not None]
-    else:
+    elif isinstance(data, dict):
         keys = [int(k) for k in data.keys() if str(k).isdigit()]
+    else:
+        # If it's neither list nor dict (e.g. string), we can't extract keys
+        keys = []
     if not keys:
         return 1
     return max(keys) + 1

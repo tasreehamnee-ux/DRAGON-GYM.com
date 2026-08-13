@@ -267,6 +267,9 @@ def add_new_member(name, phone, address, landmark, plan_name, start_date, paymen
             msg = "تم تجديد اشتراك المشترك بنجاح" if is_renewal else "تم إضافة المشترك بنجاح"
             return True, msg, member_id
         except Exception as e:
+            import traceback
+            with open('error_log.txt', 'a', encoding='utf-8') as f:
+                f.write(traceback.format_exc())
             return False, str(e), None
 
     session = get_session()
@@ -362,6 +365,9 @@ def add_new_member(name, phone, address, landmark, plan_name, start_date, paymen
         return True, msg, target_member.id
     except Exception as e:
         session.rollback()
+        import traceback
+        with open('error_log.txt', 'a', encoding='utf-8') as f:
+            f.write(traceback.format_exc())
         return False, str(e), None
     finally:
         session.close()

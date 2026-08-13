@@ -660,7 +660,7 @@ class MainWindow(QMainWindow):
         staff_count.setAlignment(Qt.AlignmentFlag.AlignCenter)
         sidebar_layout.addWidget(staff_count)
         
-        dev_info = QLabel("نظام إدارة القاعات الرياضية\nبرمجة: م.م رنا علي ذويب")
+        dev_info = QLabel("نظام إدارة القاعات الرياضية\nتصميم وبرمجة م.م رنا علي ذويب")
         dev_info.setStyleSheet("color: #94a3b8; font-size: 11px; border: none; font-weight: bold;")
         dev_info.setAlignment(Qt.AlignmentFlag.AlignCenter)
         sidebar_layout.addWidget(dev_info)

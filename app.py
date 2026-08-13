@@ -213,6 +213,7 @@ def export_members():
 
 @app.route('/api/members', methods=['GET', 'POST'])
 def members():
+    import traceback
     session = get_session()
     try:
         if request.method == 'POST':
@@ -244,6 +245,8 @@ def members():
             if success:
                 return jsonify({"message": msg, "id": member_id}), 201
             else:
+                with open('error_log.txt', 'a', encoding='utf-8') as f:
+                    f.write(f"add_new_member returned False, msg: {msg}\n")
                 return jsonify({"error": msg}), 400
                 
         # GET method logic
